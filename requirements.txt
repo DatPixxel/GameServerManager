@@ -1,0 +1,35 @@
+# Game Server Manager Pro - Security Edition
+# Requirements für die sicheren Module
+
+# ===== BESTEHENDE DEPENDENCIES =====
+customtkinter>=5.2.0
+Flask>=3.0.0
+requests>=2.31.0
+psutil>=5.9.0
+
+# System Tray (optional)
+pystray>=0.19.5
+Pillow>=10.0.0
+
+# ===== NEUE SECURITY DEPENDENCIES =====
+
+# Passwort-Hashing (wähle EINE der folgenden):
+
+# OPTION 1: Argon2id (EMPFOHLEN - höchste Sicherheit)
+argon2-cffi>=23.1.0
+
+# OPTION 2: bcrypt (Fallback wenn Argon2 Probleme macht)
+# bcrypt>=4.1.0
+
+# Hinweis: scrypt ist in Python Standard Library enthalten (kein Install nötig)
+# wird automatisch als letzter Fallback verwendet wenn weder Argon2 noch bcrypt verfügbar
+
+# ===== OPTIONALE DEPENDENCIES =====
+
+# Für erweiterte IP-Validierung
+# ipaddress ist in Python 3.3+ Standard Library
+
+# Für Testing (optional)
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# pytest-flask>=1.2.0
