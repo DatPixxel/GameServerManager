@@ -72,7 +72,7 @@ except ImportError:
     WINREG_AVAILABLE = False
 
 # ==================== KONSTANTEN ====================
-VERSION = "3.35"
+VERSION = "3.36"
 APP_NAME = "Game Server Manager Pro"
 
 # GitHub für Auto-Updates
@@ -946,13 +946,13 @@ SUPPORTED_GAMES = {
     },
     "RuneScape: Dragonwilds": {
         "app_id": "4019830",  # Eigene Dedicated-Server-App (nicht die Spiel-App)
-        "exe_path": "RSDragonwilds.exe",
-        "default_params": "-log -NewConsole -port=7777",
-        "default_ports": {"game": 7777, "query": 27015, "game2": 7778},
+        "exe_path": "RSDragonwilds/Binaries/Win64/RSDragonwildsServer-Win64-Shipping.exe",  # NICHT der Stub RSDragonwilds.exe im Wurzelordner!
+        "default_params": "-log -port=7777",
+        "default_ports": {"game": 7777, "query": 7778, "game2": 7778},
         "icon": "🐉",
         "config_path": "RSDragonwilds/Saved/Config/WindowsServer",
         "save_path": "RSDragonwilds/Saved/Savegames",
-        "port_note": "UDP! Server reserviert zusätzlich den Sekundär-Port 7777+1 (7778). Beide UDP-Ports müssen offen/weitergeleitet sein.",
+        "port_note": "UDP! Server reserviert automatisch Port+1 (7778). Beide UDP-Ports müssen offen/weitergeleitet sein. Vor dem Start OwnerId in DedicatedServer.ini eintragen (Player-ID aus dem Spiel-Menü Einstellungen).",
         "max_players": 6  # Offiziell max. 6 Spieler; RAM: 2 GB + 1 GB pro Spieler
     }
 }

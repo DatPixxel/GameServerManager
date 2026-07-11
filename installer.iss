@@ -2,7 +2,7 @@
 ; Beendet laufende Instanzen automatisch vor der Installation
 
 #define MyAppName "Game Server Manager Pro"
-#define MyAppVersion "3.35"
+#define MyAppVersion "3.36"
 #define MyAppPublisher "DatPixxel"
 #define MyAppURL "https://github.com/DatPixxel/GameServerManager"
 #define MyAppExeName "GameServerManager.exe"
