@@ -23,17 +23,19 @@ import re
 import hashlib
 import secrets
 import struct
+import ipaddress
+import uuid
 from flask import Flask, render_template_string, jsonify, request, session, redirect
+from werkzeug.exceptions import RequestEntityTooLarge
 import socket
 
-# Security Module
 try:
-    from web_security import RateLimiter, FileSessionStore, generate_csrf_token, validate_csrf_token, csrf_protect, add_security_headers, get_client_ip
-    SECURITY_AVAILABLE = True
-except ImportError:
-    SECURITY_AVAILABLE = False
-    print("⚠️  web_security.py nicht gefunden - Security-Features deaktiviert")
-
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # SSL Fix für PyInstaller
 try:
@@ -70,7 +72,7 @@ except ImportError:
     WINREG_AVAILABLE = False
 
 # ==================== KONSTANTEN ====================
-VERSION = "3.15"
+VERSION = "3.34"
 APP_NAME = "Game Server Manager Pro"
 
 # GitHub für Auto-Updates
@@ -139,6 +141,58 @@ def get_paths(base_dir):
 
 # Globale Pfade (werden beim Start gesetzt)
 PATHS = {}
+
+CONAN_WORKSHOP_APP_ID = "440900"
+CONAN_UPLOAD_MAX_BYTES = 8 * 1024 * 1024 * 1024
+
+
+def _normalize_mod_id(value):
+    text = str(value or "").strip()
+    return text if text.isdigit() else ""
+
+
+def _sanitize_pak_filename(filename):
+    name = os.path.basename(str(filename or "").strip())
+    if not name:
+        return ""
+    if not name.lower().endswith(".pak"):
+        return ""
+    safe = re.sub(r"[^A-Za-z0-9._\- ]", "_", name)
+    safe = safe.strip(" .")
+    if not safe or not safe.lower().endswith(".pak"):
+        return ""
+    return safe
+
+
+def fetch_workshop_mod_names(mod_ids):
+    """Lädt Workshop-Namen für gegebene Mod-IDs (ohne API-Key)."""
+    ids = [mid for mid in (_normalize_mod_id(x) for x in (mod_ids or [])) if mid]
+    if not ids:
+        return {}
+
+    payload = {"itemcount": str(len(ids))}
+    for idx, mid in enumerate(ids):
+        payload[f"publishedfileids[{idx}]"] = mid
+
+    result = {}
+    try:
+        r = requests.post(
+            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+            data=payload,
+            timeout=12,
+            verify=SSL_VERIFY,
+        )
+        if r.status_code != 200:
+            return result
+        data = r.json().get("response", {}).get("publishedfiledetails", [])
+        for item in data:
+            pid = _normalize_mod_id(item.get("publishedfileid", ""))
+            title = str(item.get("title", "")).strip()
+            if pid and title:
+                result[pid] = title
+    except Exception:
+        return result
+    return result
 
 # Web-Server
 WEB_PORT = 5001
@@ -815,15 +869,6 @@ SUPPORTED_GAMES = {
         "config_path": "",
         "save_path": ""
     },
-    "Sons of the Forest": {
-        "app_id": "2465200",
-        "exe_path": "SonsOfTheForestDS.exe",
-        "default_params": "-userdatapath ./userdata",
-        "default_ports": {"game": 8766, "query": 27016, "blobsync": 9700},
-        "icon": "🏕️",
-        "config_path": "userdata/dedicatedserver.cfg",
-        "save_path": "userdata/Saves"
-    },
     "Space Engineers": {
         "app_id": "298740",
         "exe_path": "DedicatedServer64/SpaceEngineersDedicated.exe",
@@ -898,6 +943,17 @@ SUPPORTED_GAMES = {
         "save_path": "StarRupture/Saved/SaveGames",
         "ds_settings": True  # Braucht DSSettings.txt für Auto-Start
         # Experimenteller Dedicated Server (Early Access seit Januar 2026)
+    },
+    "RuneScape: Dragonwilds": {
+        "app_id": "4019830",  # Eigene Dedicated-Server-App (nicht die Spiel-App)
+        "exe_path": "RSDragonwilds.exe",
+        "default_params": "-log -NewConsole -port=7777",
+        "default_ports": {"game": 7777, "query": 27015, "game2": 7778},
+        "icon": "🐉",
+        "config_path": "RSDragonwilds/Saved/Config/WindowsServer",
+        "save_path": "RSDragonwilds/Saved/Savegames",
+        "port_note": "UDP! Server reserviert zusätzlich den Sekundär-Port 7777+1 (7778). Beide UDP-Ports müssen offen/weitergeleitet sein.",
+        "max_players": 6  # Offiziell max. 6 Spieler; RAM: 2 GB + 1 GB pro Spieler
     }
 }
 
@@ -1914,6 +1970,17 @@ class ConfigManager:
                 "enabled": True,
                 "port": 5001
             },
+            "chat_stream": {
+                "enabled": False,
+                "room_name": "Private Room",
+                "require_tailscale": True
+            },
+            "teamspeak3": {
+                "enabled": False,
+                "server_type": "ts3",
+                "base_path": r"C:\TeamSpeak3 Server",
+                "exe_name": ""
+            },
             "steamcmd_installed": False,
             "clusters": {}
         }
@@ -2234,6 +2301,313 @@ class ServerInstance:
     def get_server_dir(self):
         """Gibt das Server-Verzeichnis zurück"""
         return os.path.join(PATHS["servers"], self.server_id)
+
+    def get_conan_workshop_root(self):
+        return os.path.join(PATHS.get("steamcmd", ""), "steamapps", "workshop", "content", CONAN_WORKSHOP_APP_ID)
+
+    def get_conan_mods_dir(self):
+        return os.path.join(self.get_server_dir(), "ConanSandbox", "Mods")
+
+    def get_conan_modlist_path(self):
+        return os.path.join(self.get_conan_mods_dir(), "modlist.txt")
+
+    def read_conan_modlist_files(self):
+        path = self.get_conan_modlist_path()
+        if not os.path.exists(path):
+            return []
+
+        items = []
+        seen = set()
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.startswith("*"):
+                        line = line[1:].strip()
+                    if not line.lower().endswith(".pak"):
+                        continue
+                    key = line.lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    items.append(line)
+        except Exception:
+            return []
+        return items
+
+    def write_conan_modlist_files(self, filenames):
+        path = self.get_conan_modlist_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        cleaned = []
+        seen = set()
+        for name in filenames or []:
+            fn = os.path.basename(str(name or "").strip())
+            if not fn.lower().endswith(".pak"):
+                continue
+            key = fn.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(fn)
+        with open(path, "w", encoding="utf-8", errors="ignore") as f:
+            for fn in cleaned:
+                f.write(f"*{fn}\n")
+
+    def ensure_conan_modlist_entry(self, pak_filename):
+        fn = os.path.basename(str(pak_filename or "").strip())
+        if not fn.lower().endswith(".pak"):
+            return False
+        current = self.read_conan_modlist_files()
+        if fn.lower() in [x.lower() for x in current]:
+            return False
+        current.append(fn)
+        self.write_conan_modlist_files(current)
+        return True
+
+    def get_conan_installed_mod_files(self):
+        mods_dir = self.get_conan_mods_dir()
+        if not os.path.exists(mods_dir):
+            return []
+        names = []
+        seen = set()
+        try:
+            for fn in os.listdir(mods_dir):
+                full = os.path.join(mods_dir, fn)
+                if not os.path.isfile(full):
+                    continue
+                if not fn.lower().endswith(".pak"):
+                    continue
+                key = fn.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                names.append(fn)
+        except Exception:
+            return []
+        return sorted(names, key=lambda x: x.lower())
+
+    def get_conan_installed_mod_ids(self):
+        if self.config.get("game") != "Conan Exiles":
+            return []
+
+        ids = set()
+        mods_dir = self.get_conan_mods_dir()
+        if os.path.exists(mods_dir):
+            for root, _dirs, files in os.walk(mods_dir):
+                for fn in files:
+                    base = os.path.splitext(fn)[0]
+                    if base.isdigit():
+                        ids.add(base)
+                    for m in re.findall(r"\d{6,12}", fn):
+                        ids.add(m)
+                for m in re.findall(r"\d{6,12}", root):
+                    ids.add(m)
+
+        modlist_paths = [
+            os.path.join(mods_dir, "modlist.txt"),
+            os.path.join(self.get_server_dir(), "ConanSandbox", "Saved", "Config", "WindowsServer", "modlist.txt"),
+        ]
+        for p in modlist_paths:
+            if not os.path.exists(p):
+                continue
+            try:
+                with open(p, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                for m in re.findall(r"\d{6,12}", content):
+                    ids.add(m)
+            except Exception:
+                pass
+
+        return sorted(ids)
+
+    def get_conan_mod_name_map(self):
+        cached = self.config.get("mod_names", {}) or {}
+        cleaned = {}
+        for key, val in cached.items():
+            mid = _normalize_mod_id(key)
+            name = str(val or "").strip()
+            if mid and name:
+                cleaned[mid] = name
+        return cleaned
+
+    def enrich_conan_mod_names(self, mod_ids):
+        ids = [mid for mid in (_normalize_mod_id(x) for x in (mod_ids or [])) if mid]
+        if not ids:
+            return {}
+
+        names = self.get_conan_mod_name_map()
+        missing = [mid for mid in ids if mid not in names]
+        if missing:
+            fetched = fetch_workshop_mod_names(missing)
+            if fetched:
+                names.update(fetched)
+                self.config["mod_names"] = names
+                try:
+                    self.config_manager.save_servers()
+                except Exception:
+                    pass
+        return names
+
+    def get_conan_mod_status(self):
+        configured_files = self.read_conan_modlist_files()
+        installed_files = self.get_conan_installed_mod_files()
+
+        conf_set = {x.lower() for x in configured_files}
+        inst_set = {x.lower() for x in installed_files}
+
+        configured = [{"id": fn, "name": fn} for fn in configured_files]
+        installed = [{"id": fn, "name": fn} for fn in installed_files]
+
+        missing = [{"id": fn, "name": fn} for fn in configured_files if fn.lower() not in inst_set]
+        extra = [{"id": fn, "name": fn} for fn in installed_files if fn.lower() not in conf_set]
+
+        return {
+            "configured": configured,
+            "installed": installed,
+            "missing": missing,
+            "extra": extra,
+        }
+
+    def _run_steamcmd_for_conan_mods(self, mod_ids, username="anonymous", password=""):
+        steamcmd_path = os.path.join(PATHS.get("steamcmd", ""), "steamcmd.exe")
+        if not os.path.exists(steamcmd_path):
+            self.log("❌ SteamCMD nicht gefunden - Conan Mod-Sync abgebrochen")
+            return False
+
+        cmd = [steamcmd_path]
+        if username == "anonymous":
+            cmd.extend(["+login", "anonymous"])
+        else:
+            cmd.extend(["+login", username, password])
+
+        for mid in mod_ids:
+            cmd.extend(["+workshop_download_item", CONAN_WORKSHOP_APP_ID, mid, "validate"])
+        cmd.append("+quit")
+
+        self.log(f"🧩 Starte Conan Workshop-Sync für {len(mod_ids)} Mods...")
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                shell=False,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            )
+            success_hits = 0
+            for line in process.stdout:
+                msg = line.strip()
+                if not msg:
+                    continue
+                lower = msg.lower()
+                if "success" in lower and ("workshop" in lower or "installed" in lower or "up to date" in lower):
+                    success_hits += 1
+                if any(x in lower for x in ["error", "failed", "downloading", "success", "up to date"]):
+                    self.log(f"[SteamCMD] {msg}")
+
+            process.wait(timeout=900)
+            if process.returncode != 0 and success_hits == 0:
+                self.log(f"❌ SteamCMD Mod-Sync fehlgeschlagen (Code {process.returncode})")
+                return False
+            return True
+        except Exception as e:
+            self.log(f"❌ SteamCMD Mod-Sync Fehler: {e}")
+            return False
+
+    def _sync_conan_mod_files_from_workshop(self, mod_ids):
+        workshop_root = self.get_conan_workshop_root()
+        mods_dir = self.get_conan_mods_dir()
+        os.makedirs(mods_dir, exist_ok=True)
+
+        copied = 0
+        missing = []
+        for mid in mod_ids:
+            src_dir = os.path.join(workshop_root, mid)
+            if not os.path.exists(src_dir):
+                missing.append(mid)
+                continue
+
+            candidates = []
+            for root, _dirs, files in os.walk(src_dir):
+                for fn in files:
+                    lower = fn.lower()
+                    if lower.endswith(".pak") or lower.endswith(".mod"):
+                        candidates.append(os.path.join(root, fn))
+
+            if not candidates:
+                missing.append(mid)
+                continue
+
+            for src in candidates:
+                dst = os.path.join(mods_dir, os.path.basename(src))
+                try:
+                    shutil.copy2(src, dst)
+                    copied += 1
+                except Exception as e:
+                    self.log(f"⚠️ Konnte Datei nicht kopieren: {os.path.basename(src)} ({e})")
+
+        if missing:
+            self.log("⚠️ Keine Workshop-Dateien gefunden für: " + ", ".join(missing))
+        self.log(f"✅ Conan Mod-Dateien synchronisiert ({copied} Dateien)")
+        return copied
+
+    def sync_conan_mods(self, username="anonymous", password=""):
+        if self.config.get("game") != "Conan Exiles":
+            return True
+
+        mod_ids = [mid for mid in (_normalize_mod_id(x) for x in self.config.get("mods", [])) if mid]
+        if not mod_ids:
+            configured_files = self.read_conan_modlist_files()
+            if configured_files:
+                self.log("ℹ️ Datei-basierte Conan Mods erkannt (modlist.txt) - Workshop-Sync übersprungen")
+                self.config["conan_mod_sync"] = {
+                    "last_run": datetime.now().isoformat(),
+                    "success": True,
+                    "message": f"Datei-Modliste aktiv ({len(configured_files)} Mods), kein Workshop-Sync nötig",
+                    "count": len(configured_files),
+                }
+                self.config_manager.save_servers()
+                return True
+
+            self.log("ℹ️ Keine Conan Mods konfiguriert - kein Sync nötig")
+            self.config["conan_mod_sync"] = {
+                "last_run": datetime.now().isoformat(),
+                "success": True,
+                "message": "Keine Mods konfiguriert",
+                "count": 0,
+            }
+            self.config_manager.save_servers()
+            return True
+
+        self.enrich_conan_mod_names(mod_ids)
+
+        ok = self._run_steamcmd_for_conan_mods(mod_ids, username=username, password=password)
+        if ok:
+            copied = self._sync_conan_mod_files_from_workshop(mod_ids)
+            status = {
+                "last_run": datetime.now().isoformat(),
+                "success": True,
+                "message": f"{len(mod_ids)} Mods synchronisiert ({copied} Dateien)",
+                "count": len(mod_ids),
+            }
+            self.log("✅ Conan Mods erfolgreich synchronisiert")
+        else:
+            status = {
+                "last_run": datetime.now().isoformat(),
+                "success": False,
+                "message": "SteamCMD Mod-Sync fehlgeschlagen",
+                "count": len(mod_ids),
+            }
+            self.log("❌ Conan Mod-Sync fehlgeschlagen")
+
+        self.config["conan_mod_sync"] = status
+        try:
+            self.config_manager.save_servers()
+        except Exception:
+            pass
+        return ok
     
     def is_installed(self):
         """Prüft ob der Server installiert ist"""
@@ -2476,6 +2850,11 @@ class ServerInstance:
         # StarRupture: DSSettings.txt erstellen falls nicht vorhanden
         if self.config.get("game") == "StarRupture":
             self._ensure_starrupture_settings()
+
+        # Conan Exiles: Workshop-Mods beim Start automatisch synchronisieren
+        if self.config.get("game") == "Conan Exiles" and self.config.get("conan_auto_mod_update", True):
+            self.log("🧩 Conan Auto-Mod-Update beim Start aktiviert")
+            self.sync_conan_mods()
         
         try:
             cmd_list = self.build_start_command()
@@ -3626,6 +4005,10 @@ class AddServerDialog(ctk.CTkToplevel):
             "server_password": self.server_pw_entry.get().strip(),
             "admin_password": self.admin_pw_entry.get().strip() or "admin",
             "mods": [],
+            "mod_names": {},
+            "conan_auto_mod_update": True if game == "Conan Exiles" else False,
+            "conan_mod_sync": {},
+            "conan_mod_upload": {},
             "auto_restart": self.auto_restart_var.get(),
             "auto_backup": self.auto_backup_var.get(),
             "backup_interval_hours": backup_hours,
@@ -3660,6 +4043,12 @@ class GameServerManagerApp(ctk.CTk):
         
         # Global Log
         self.log_messages = []
+
+        # Chat/Stream + TeamSpeak Runtime
+        self.chat_runtime = {}
+        self.ts3_process = None
+        self.ts3_log_path = ""
+        self.ts3_log_handle = None
         
         # Prüfe ob bereits eingerichtet
         saved_base_dir = load_base_dir()
@@ -4161,6 +4550,12 @@ class GameServerManagerApp(ctk.CTk):
                     instance.stop()
                 except:
                     pass
+
+        # TeamSpeak 3 stoppen, falls gestartet
+        try:
+            self.stop_teamspeak3_server()
+        except:
+            pass
         
         # Fenster schließen
         self.destroy()
@@ -4228,6 +4623,8 @@ class GameServerManagerApp(ctk.CTk):
             ("💾", "Backup Manager", "Backups erstellen und verwalten", self.show_backup_manager),
             ("📊", "System Monitor", "CPU/RAM Übersicht", self.show_system_monitor),
             ("🌐", "Web Interface", "Browser-Zugriff öffnen", self.open_web_interface),
+            ("💬", "Chat & Stream", "Textchat + Screen/Game Stream verwalten", self.show_chat_stream_manager),
+            ("🎙️", "TeamSpeak Server", "TS3/TS6 Server starten/stoppen + Status", self.show_teamspeak3_manager),
             ("📁", "Ordner öffnen", "Server-Verzeichnis öffnen", self.open_base_folder),
             ("🔗", "Cluster Manager", "ARK Cluster verwalten", self.show_cluster_settings),
         ]
@@ -4428,6 +4825,461 @@ class GameServerManagerApp(ctk.CTk):
             width=100
         ).pack(side="left", padx=10)
     
+
+    def _get_local_tailscale_ip(self):
+        # Versucht die lokale Tailscale-IP zu ermitteln
+        try:
+            hostname = socket.gethostname()
+            for ip in socket.gethostbyname_ex(hostname)[2]:
+                if ip.startswith("100."):
+                    return ip
+        except:
+            pass
+        return "127.0.0.1"
+
+    def get_chat_stream_config(self):
+        # Liefert Chat/Stream Konfiguration mit Defaults
+        cfg = self.config_manager.app_config.get("chat_stream", {})
+        if "enabled" not in cfg:
+            cfg["enabled"] = False
+        if "room_name" not in cfg:
+            cfg["room_name"] = "Private Room"
+        if "require_tailscale" not in cfg:
+            cfg["require_tailscale"] = True
+        self.config_manager.app_config["chat_stream"] = cfg
+        return cfg
+
+    def is_chat_stream_enabled(self):
+        return self.get_chat_stream_config().get("enabled", False)
+
+    def set_chat_stream_enabled(self, enabled):
+        cfg = self.get_chat_stream_config()
+        cfg["enabled"] = bool(enabled)
+        self.config_manager.app_config["chat_stream"] = cfg
+        self.config_manager.save_app_config()
+
+    def init_chat_runtime(self):
+        # Initialisiert Runtime-Container für RAM-Chat + Signaling
+        if self.chat_runtime:
+            return
+        self.chat_runtime = {
+            "lock": threading.Lock(),
+            "message_seq": 0,
+            "signal_seq": 0,
+            "messages": [],
+            "signals": [],
+            "presence": {}
+        }
+
+    def open_web_page(self, route="/"):
+        # Öffnet eine Web-Seite im Browser
+        import webbrowser
+        port = self.config_manager.app_config.get("web", {}).get("port", 5001)
+        route = route if route.startswith("/") else "/" + route
+        webbrowser.open(f"http://localhost:{port}{route}")
+
+
+    def _get_teamspeak_exe_by_type(self, server_type):
+        if server_type == "ts6":
+            return "tsserver.exe"
+        return "ts3server.exe"
+
+    def _get_teamspeak_base_path_by_type(self, server_type):
+        if server_type == "ts6":
+            return r"C:\TeamSpeak6 Server"
+        return r"C:\TeamSpeak3 Server"
+
+    def _get_teamspeak_exe_candidates(self, server_type):
+        if server_type == "ts6":
+            return ["tsserver.exe", "ts6server.exe"]
+        return ["ts3server.exe"]
+
+    def _resolve_teamspeak_executable(self, cfg):
+        base_path = cfg.get("base_path", "")
+        server_type = cfg.get("server_type", "ts3")
+        configured = str(cfg.get("exe_name", "")).strip()
+
+        candidates = []
+        if configured:
+            candidates.append(configured)
+        for name in self._get_teamspeak_exe_candidates(server_type):
+            if name not in candidates:
+                candidates.append(name)
+
+        for name in candidates:
+            candidate_path = os.path.join(base_path, name)
+            if os.path.exists(candidate_path):
+                return candidate_path, name, candidates, True
+
+        fallback_name = configured or self._get_teamspeak_exe_by_type(server_type)
+        return os.path.join(base_path, fallback_name), fallback_name, candidates, False
+
+    def _get_teamspeak3_defaults(self):
+        default_path = self._get_teamspeak_base_path_by_type("ts3")
+        return {
+            "enabled": False,
+            "server_type": "ts3",
+            "base_path": default_path,
+            "exe_name": ""
+        }
+
+    def get_teamspeak3_config(self):
+        defaults = self._get_teamspeak3_defaults()
+        cfg = self.config_manager.app_config.get("teamspeak3", {})
+
+        server_type = str(cfg.get("server_type", defaults["server_type"]))
+        if server_type not in ("ts3", "ts6"):
+            server_type = "ts3"
+
+        exe_name = str(cfg.get("exe_name", "")).strip()
+        if not exe_name:
+            exe_name = self._get_teamspeak_exe_by_type(server_type)
+
+        base_path = str(cfg.get("base_path", "")).strip()
+        if not base_path:
+            base_path = self._get_teamspeak_base_path_by_type(server_type)
+
+        legacy_default = os.path.join(PATHS.get("base", ""), "tools", "teamspeak3")
+        if os.path.normcase(base_path) == os.path.normcase(legacy_default):
+            base_path = self._get_teamspeak_base_path_by_type(server_type)
+
+        merged = {
+            "enabled": cfg.get("enabled", defaults["enabled"]),
+            "server_type": server_type,
+            "base_path": base_path,
+            "exe_name": exe_name
+        }
+        self.config_manager.app_config["teamspeak3"] = merged
+        return merged
+
+    def save_teamspeak3_config(self, cfg):
+        self.config_manager.app_config["teamspeak3"] = cfg
+        self.config_manager.save_app_config()
+
+    def get_teamspeak3_executable_path(self):
+        cfg = self.get_teamspeak3_config()
+        exe_path, _, _, _ = self._resolve_teamspeak_executable(cfg)
+        return exe_path
+
+    def get_teamspeak_runtime_label(self):
+        cfg = self.get_teamspeak3_config()
+        return "TeamSpeak 6" if cfg.get("server_type") == "ts6" else "TeamSpeak 3"
+
+    def get_teamspeak_runtime_short(self):
+        cfg = self.get_teamspeak3_config()
+        return "TS6" if cfg.get("server_type") == "ts6" else "TS3"
+
+    def is_teamspeak3_running(self):
+        if self.ts3_process is None:
+            return False
+        if self.ts3_process.poll() is not None:
+            self.ts3_process = None
+            if self.ts3_log_handle:
+                try:
+                    self.ts3_log_handle.close()
+                except:
+                    pass
+                self.ts3_log_handle = None
+            return False
+        return True
+
+    def start_teamspeak3_server(self):
+        label = self.get_teamspeak_runtime_label()
+        short = self.get_teamspeak_runtime_short()
+
+        if self.is_teamspeak3_running():
+            return True, f"{label} läuft bereits."
+
+        cfg = self.get_teamspeak3_config()
+        base_path = cfg.get("base_path", "")
+
+        if not base_path:
+            return False, f"{label} Pfad ist leer."
+
+        os.makedirs(base_path, exist_ok=True)
+
+        exe_path, detected_exe, tried_names, exists = self._resolve_teamspeak_executable(cfg)
+        if not exists:
+            tried = ", ".join(tried_names)
+            return False, f"{short} Server nicht gefunden: {exe_path} (Gesucht: {tried})"
+
+        if cfg.get("exe_name") != detected_exe:
+            cfg["exe_name"] = detected_exe
+            self.save_teamspeak3_config(cfg)
+
+        log_name = "ts6server_runtime.log" if cfg.get("server_type") == "ts6" else "ts3server_runtime.log"
+        self.ts3_log_path = os.path.join(base_path, log_name)
+
+        try:
+            flags = 0
+            if os.name == "nt":
+                flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+            self.ts3_log_handle = open(self.ts3_log_path, "a", encoding="utf-8", errors="replace")
+            self.ts3_log_handle.write(f"\n===== {short} Start {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} =====\n")
+            self.ts3_log_handle.flush()
+
+            self.ts3_process = subprocess.Popen(
+                [exe_path],
+                cwd=base_path,
+                stdout=self.ts3_log_handle,
+                stderr=subprocess.STDOUT,
+                creationflags=flags
+            )
+            cfg["enabled"] = True
+            self.save_teamspeak3_config(cfg)
+            return True, f"{label} wurde gestartet."
+        except Exception as e:
+            if self.ts3_log_handle:
+                try:
+                    self.ts3_log_handle.close()
+                except:
+                    pass
+                self.ts3_log_handle = None
+            self.ts3_process = None
+            return False, f"{short} Start fehlgeschlagen: {e}"
+
+    def stop_teamspeak3_server(self):
+        label = self.get_teamspeak_runtime_label()
+        short = self.get_teamspeak_runtime_short()
+
+        if not self.is_teamspeak3_running():
+            return True, f"{label} läuft nicht."
+
+        try:
+            self.ts3_process.terminate()
+            try:
+                self.ts3_process.wait(timeout=8)
+            except:
+                self.ts3_process.kill()
+            self.ts3_process = None
+            if self.ts3_log_handle:
+                try:
+                    self.ts3_log_handle.close()
+                except:
+                    pass
+                self.ts3_log_handle = None
+
+            cfg = self.get_teamspeak3_config()
+            cfg["enabled"] = False
+            self.save_teamspeak3_config(cfg)
+            return True, f"{label} wurde gestoppt."
+        except Exception as e:
+            return False, f"{short} Stop fehlgeschlagen: {e}"
+
+    def read_teamspeak3_log_tail(self, max_lines=120):
+        path = self.ts3_log_path
+        if not path:
+            cfg = self.get_teamspeak3_config()
+            log_name = "ts6server_runtime.log" if cfg.get("server_type") == "ts6" else "ts3server_runtime.log"
+            path = os.path.join(cfg.get("base_path", ""), log_name)
+
+        if not os.path.exists(path):
+            return "Noch keine Logs vorhanden."
+
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+            return "".join(lines[-max_lines:]) if lines else "Noch keine Logs vorhanden."
+        except Exception as e:
+            return f"Log-Datei konnte nicht gelesen werden: {e}"
+
+    def get_service_status_payload(self):
+        web_port = self.config_manager.app_config.get("web", {}).get("port", 5001)
+        tail_ip = self._get_local_tailscale_ip()
+        return {
+            "chat_enabled": self.is_chat_stream_enabled(),
+            "chat_url": f"http://{tail_ip}:{web_port}/chat",
+            "teamspeak_running": self.is_teamspeak3_running(),
+            "teamspeak_label": self.get_teamspeak_runtime_label()
+        }
+
+    def show_chat_stream_manager(self):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Chat & Stream Manager")
+        dialog.geometry("760x460")
+
+        ctk.CTkLabel(dialog, text="💬 Chat + Stream", font=("Arial", 24, "bold"), text_color="#00d4ff").pack(pady=(18, 8))
+        ctk.CTkLabel(
+            dialog,
+            text="Textchat + Dual Screen/Game-Stream (Chrome/Edge) über Tailscale",
+            font=("Arial", 13),
+            text_color="#aaaaaa"
+        ).pack(pady=(0, 14))
+
+        status_frame = ctk.CTkFrame(dialog, fg_color="#1e1e2e")
+        status_frame.pack(fill="x", padx=20, pady=8)
+
+        chat_status_var = ctk.StringVar(value="Chat: wird geladen...")
+        ts_status_var = ctk.StringVar(value="TeamSpeak: wird geladen...")
+        url_var = ctk.StringVar(value="")
+
+        chat_status_lbl = ctk.CTkLabel(status_frame, textvariable=chat_status_var, font=("Arial", 15, "bold"))
+        chat_status_lbl.pack(anchor="w", padx=16, pady=(12, 4))
+        ts_status_lbl = ctk.CTkLabel(status_frame, textvariable=ts_status_var, font=("Arial", 14, "bold"))
+        ts_status_lbl.pack(anchor="w", padx=16, pady=(0, 4))
+        ctk.CTkLabel(status_frame, textvariable=url_var, font=("Consolas", 13), text_color="#00d4ff").pack(anchor="w", padx=16, pady=(0, 12))
+
+        btns = ctk.CTkFrame(dialog, fg_color="transparent")
+        btns.pack(fill="x", padx=20, pady=8)
+
+        def refresh_state():
+            payload = self.get_service_status_payload()
+
+            chat_on = payload["chat_enabled"]
+            chat_status_var.set(f"{'🟢' if chat_on else '🔴'} Chat/Stream: {'AKTIV' if chat_on else 'INAKTIV'}")
+            chat_status_lbl.configure(text_color="#39d98a" if chat_on else "#ff7b7b")
+
+            ts_on = payload["teamspeak_running"]
+            ts_status_var.set(f"{'🟢' if ts_on else '🔴'} {payload['teamspeak_label']}: {'ONLINE' if ts_on else 'OFFLINE'}")
+            ts_status_lbl.configure(text_color="#39d98a" if ts_on else "#ff7b7b")
+
+            url_var.set(f"Tailscale URL: {payload['chat_url']}")
+
+        def schedule_refresh():
+            if not dialog.winfo_exists():
+                return
+            refresh_state()
+            dialog.after(2000, schedule_refresh)
+
+        def set_chat_state(enabled):
+            self.set_chat_stream_enabled(enabled)
+            refresh_state()
+            messagebox.showinfo("Chat & Stream", "Chat/Stream aktiviert." if enabled else "Chat/Stream deaktiviert.")
+
+        ctk.CTkButton(btns, text="▶ Aktivieren", width=130, fg_color="#2d5a2d", hover_color="#3d7a3d", command=lambda: set_chat_state(True)).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="⏹ Deaktivieren", width=130, fg_color="#aa3333", hover_color="#cc4444", command=lambda: set_chat_state(False)).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="🌐 Chat öffnen", width=140, fg_color="#005f8c", hover_color="#0077aa", command=lambda: self.open_web_page("/chat")).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="🎙️ TeamSpeak verwalten", width=190, command=self.show_teamspeak3_manager).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="🗕 Minimieren", width=120, command=dialog.iconify).pack(side="left", padx=5)
+
+        ctk.CTkLabel(
+            dialog,
+            text="Hinweis: Chat-Nachrichten werden aktuell nur im RAM gehalten (beim Neustart gelöscht).",
+            font=("Arial", 12),
+            text_color="#888888"
+        ).pack(anchor="w", padx=24, pady=(12, 4))
+
+        refresh_state()
+        schedule_refresh()
+
+    def show_teamspeak3_manager(self):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("TeamSpeak Server")
+        dialog.geometry("940x700")
+
+        cfg = self.get_teamspeak3_config()
+
+        title_var = ctk.StringVar(value=f"🎙️ {self.get_teamspeak_runtime_label()} Server")
+        ctk.CTkLabel(dialog, textvariable=title_var, font=("Arial", 24, "bold"), text_color="#00d4ff").pack(pady=(16, 10))
+
+        top = ctk.CTkFrame(dialog, fg_color="#1e1e2e")
+        top.pack(fill="x", padx=20, pady=(0, 10))
+
+        ctk.CTkLabel(top, text="Server-Typ", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(12, 4))
+        type_var = ctk.StringVar(value="TS6" if cfg.get("server_type") == "ts6" else "TS3")
+        type_combo = ctk.CTkComboBox(top, values=["TS3", "TS6"], variable=type_var, width=180)
+        type_combo.pack(anchor="w", padx=16, pady=(0, 8))
+
+        ctk.CTkLabel(top, text="Basis-Pfad", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
+        path_var = ctk.StringVar(value=cfg.get("base_path", ""))
+        ctk.CTkEntry(top, textvariable=path_var, height=34).pack(fill="x", padx=16, pady=(0, 8))
+
+        ctk.CTkLabel(top, text="Exe-Datei (optional)", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
+        exe_var = ctk.StringVar(value=cfg.get("exe_name", ""))
+        ctk.CTkEntry(top, textvariable=exe_var, height=34).pack(fill="x", padx=16, pady=(0, 8))
+
+        hint_var = ctk.StringVar(value="")
+        ctk.CTkLabel(top, textvariable=hint_var, font=("Consolas", 12), text_color="#7ec8ff").pack(anchor="w", padx=16, pady=(0, 8))
+
+        status_var = ctk.StringVar(value="Status wird geladen...")
+        status_lbl = ctk.CTkLabel(top, textvariable=status_var, font=("Arial", 15, "bold"))
+        status_lbl.pack(anchor="w", padx=16, pady=(0, 12))
+
+        btns = ctk.CTkFrame(dialog, fg_color="transparent")
+        btns.pack(fill="x", padx=20, pady=(0, 10))
+
+        log_box = ctk.CTkTextbox(dialog, height=330)
+        log_box.pack(fill="both", expand=True, padx=20, pady=(0, 14))
+
+        def normalize_type(value):
+            return "ts6" if str(value).strip().upper() == "TS6" else "ts3"
+
+        def preview_cfg():
+            server_type = normalize_type(type_var.get())
+            configured_exe = exe_var.get().strip()
+            exe_name = configured_exe or self._get_teamspeak_exe_by_type(server_type)
+            return {
+                "server_type": server_type,
+                "base_path": path_var.get().strip(),
+                "exe_name": exe_name
+            }
+
+        def persist_config(force_default_exe=False):
+            cfg_now = self.get_teamspeak3_config()
+            cfg_now["server_type"] = normalize_type(type_var.get())
+            cfg_now["base_path"] = path_var.get().strip() or self._get_teamspeak_base_path_by_type(cfg_now["server_type"])
+            path_var.set(cfg_now["base_path"])
+            if force_default_exe or not exe_var.get().strip():
+                exe_var.set(self._get_teamspeak_exe_by_type(cfg_now["server_type"]))
+            cfg_now["exe_name"] = exe_var.get().strip()
+            self.save_teamspeak3_config(cfg_now)
+            return cfg_now
+
+        def refresh():
+            cfg_now = preview_cfg()
+            label = "TeamSpeak 6" if cfg_now["server_type"] == "ts6" else "TeamSpeak 3"
+            title_var.set(f"🎙️ {label} Server")
+
+            exe_path, _, tried_names, exists = self._resolve_teamspeak_executable(cfg_now)
+            running = self.is_teamspeak3_running()
+            status_var.set(f"{'🟢 Läuft' if running else '🔴 Gestoppt'} | Exe: {exe_path}")
+            status_lbl.configure(text_color="#39d98a" if running else "#ff7b7b")
+            hint_var.set(f"Gesucht: {', '.join(tried_names)}")
+
+            log_box.delete("1.0", "end")
+            log_box.insert("1.0", self.read_teamspeak3_log_tail())
+
+        def schedule_refresh():
+            if not dialog.winfo_exists():
+                return
+            refresh()
+            dialog.after(2000, schedule_refresh)
+
+        def on_type_change(_=None):
+            selected = normalize_type(type_var.get())
+            path_var.set(self._get_teamspeak_base_path_by_type(selected))
+            persist_config(force_default_exe=True)
+            refresh()
+
+        def start_server():
+            persist_config(force_default_exe=False)
+            ok, msg = self.start_teamspeak3_server()
+            refresh()
+            if ok:
+                messagebox.showinfo("TeamSpeak", msg)
+            else:
+                messagebox.showerror("TeamSpeak", msg)
+
+        def stop_server():
+            ok, msg = self.stop_teamspeak3_server()
+            refresh()
+            if ok:
+                messagebox.showinfo("TeamSpeak", msg)
+            else:
+                messagebox.showerror("TeamSpeak", msg)
+
+        type_combo.configure(command=on_type_change)
+
+        ctk.CTkButton(btns, text="▶ Start", width=110, fg_color="#2d5a2d", hover_color="#3d7a3d", command=start_server).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="⏹ Stop", width=110, fg_color="#aa3333", hover_color="#cc4444", command=stop_server).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="🔄 Aktualisieren", width=130, command=refresh).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="📁 Ordner öffnen", width=130, command=lambda: os.startfile(path_var.get()) if os.path.exists(path_var.get()) else None).pack(side="left", padx=5)
+        ctk.CTkButton(btns, text="🗕 Minimieren", width=120, command=dialog.iconify).pack(side="left", padx=5)
+
+        refresh()
+        schedule_refresh()
+
     def open_base_folder(self):
         """Öffnet den Basis-Ordner"""
         import subprocess
@@ -4804,7 +5656,7 @@ class GameServerManagerApp(ctk.CTk):
         # Prüfen ob Dashboard noch angezeigt wird
         try:
             children = self.content_area.winfo_children()
-            if children and hasattr(self, '_dashboard_refresh_id'):
+            if children and hasattr(self, 'auto_refresh_label'):
                 # Dashboard ist noch sichtbar - aktualisieren
                 self.show_dashboard()
         except:
@@ -5607,6 +6459,74 @@ class GameServerManagerApp(ctk.CTk):
                 width=160,
                 height=35
             ).pack(side="left", padx=5)
+
+            ctk.CTkButton(
+                conan_btn_frame,
+                text="🧩 Mods jetzt syncen",
+                command=lambda: self.sync_conan_mods_now(server_id),
+                fg_color="#7E57C2",
+                hover_color="#673AB7",
+                width=170,
+                height=35
+            ).pack(side="left", padx=5)
+
+            auto_mod_var = ctk.BooleanVar(value=server_config.get("conan_auto_mod_update", True))
+            ctk.CTkCheckBox(
+                conan_frame,
+                text="Beim Start automatisch Conan Mods updaten",
+                variable=auto_mod_var,
+                command=lambda: self.set_conan_auto_mod_update(server_id, auto_mod_var.get())
+            ).pack(anchor="w", padx=20, pady=(4, 8))
+
+            instance_for_status = self.server_instances.get(server_id)
+            if instance_for_status:
+                status = instance_for_status.get_conan_mod_status()
+                cfg_count = len(status.get("configured", []))
+                inst_count = len(status.get("installed", []))
+                miss_count = len(status.get("missing", []))
+                extra_count = len(status.get("extra", []))
+                ctk.CTkLabel(
+                    conan_frame,
+                    text=f"🧩 Konfiguriert: {cfg_count} | Installiert: {inst_count} | Fehlend: {miss_count} | Extra: {extra_count}",
+                    font=("Arial", 11),
+                    text_color="#7dcfff"
+                ).pack(anchor="w", padx=20, pady=(2, 8))
+
+                if status.get("configured"):
+                    ctk.CTkLabel(
+                        conan_frame,
+                        text="Mod-Auswahl",
+                        font=("Arial", 10, "bold"),
+                        text_color="#c9d1ff"
+                    ).pack(anchor="w", padx=20, pady=(0, 4))
+
+                    options = [f"{m['name']}" for m in status["configured"]]
+                    selected_mod_var = ctk.StringVar(value=options[0])
+                    ctk.CTkOptionMenu(
+                        conan_frame,
+                        values=options,
+                        variable=selected_mod_var,
+                        width=500,
+                        fg_color="#2a3554",
+                        button_color="#3d4f7a",
+                        button_hover_color="#51679a"
+                    ).pack(anchor="w", padx=20, pady=(0, 8))
+
+            sync_info = server_config.get("conan_mod_sync", {}) or {}
+            if sync_info.get("last_run"):
+                try:
+                    dt = datetime.fromisoformat(sync_info["last_run"]).strftime("%d.%m.%Y %H:%M:%S")
+                except Exception:
+                    dt = str(sync_info.get("last_run"))
+                txt = "✅" if sync_info.get("success") else "⚠️"
+                ctk.CTkLabel(
+                    conan_frame,
+                    text=f"{txt} Letzter Mod-Sync: {dt} - {sync_info.get('message', '')}",
+                    font=("Arial", 10),
+                    text_color="#9fd3ff" if sync_info.get("success") else "#ffb86c",
+                    wraplength=1100,
+                    justify="left"
+                ).pack(anchor="w", padx=20, pady=(0, 10))
             
             # Letzte Speicherung anzeigen
             server_dir = os.path.join(PATHS["servers"], server_id)
@@ -5719,81 +6639,6 @@ class GameServerManagerApp(ctk.CTk):
                 ).pack(anchor="w", padx=20, pady=(5, 15))
         
         # ============ END ENSHROUDED SECTION ============
-        
-        # ============ SONS OF THE FOREST SECTION ============
-        if server_config.get("game") == "Sons of the Forest":
-            sotf_frame = ctk.CTkFrame(scroll)
-            sotf_frame.pack(fill="x", pady=10)
-            
-            # Header
-            header_sotf = ctk.CTkFrame(sotf_frame, fg_color="transparent")
-            header_sotf.pack(fill="x", padx=20, pady=15)
-            
-            ctk.CTkLabel(
-                header_sotf,
-                text="🏕️ Sons of the Forest Server",
-                font=("Arial", 18, "bold")
-            ).pack(side="left")
-            
-            # Buttons Frame
-            sotf_btn_frame = ctk.CTkFrame(sotf_frame, fg_color="transparent")
-            sotf_btn_frame.pack(fill="x", padx=20, pady=5)
-            
-            # Config erstellen/öffnen Button
-            ctk.CTkButton(
-                sotf_btn_frame,
-                text="⚙️ Server-Config",
-                command=lambda: self.create_sotf_config_template(server_id),
-                fg_color="#2E7D32",
-                hover_color="#1B5E20",
-                width=140,
-                height=35
-            ).pack(side="left", padx=5)
-            
-            # Admin-Whitelist Button
-            ctk.CTkButton(
-                sotf_btn_frame,
-                text="👑 Admin-Liste",
-                command=lambda: self.create_sotf_owners_whitelist(server_id),
-                fg_color="#FF9800",
-                hover_color="#F57C00",
-                width=130,
-                height=35
-            ).pack(side="left", padx=5)
-            
-            # Saves-Ordner Button
-            ctk.CTkButton(
-                sotf_btn_frame,
-                text="💾 Savegames",
-                command=lambda: self.open_sotf_saves_folder(server_id),
-                fg_color="#607D8B",
-                hover_color="#455A64",
-                width=120,
-                height=35
-            ).pack(side="left", padx=5)
-            
-            # Port-Info anzeigen
-            port = server_config.get("port", 8766)
-            query_port = server_config.get("query_port", 27016)
-            
-            port_info = ctk.CTkFrame(sotf_frame, fg_color="transparent")
-            port_info.pack(fill="x", padx=20, pady=(5, 10))
-            
-            ctk.CTkLabel(
-                port_info,
-                text=f"🔌 Ports: Game={port} | Query={query_port} | BlobSync=9700",
-                font=("Arial", 12),
-                text_color="#888888"
-            ).pack(anchor="w")
-            
-            ctk.CTkLabel(
-                port_info,
-                text="💡 Tipp: Alle 3 Ports (UDP) im Router freigeben!",
-                font=("Arial", 11),
-                text_color="#00d4ff"
-            ).pack(anchor="w", pady=(5, 0))
-        
-        # ============ END SONS OF THE FOREST SECTION ============
         
         # Log Section - Farbige Console
         log_frame = ctk.CTkFrame(scroll, fg_color="#1a1a2e")
@@ -6137,13 +6982,6 @@ class GameServerManagerApp(ctk.CTk):
             "The Forest": f"""1. Starte The Forest
 2. Wähle "Multiplayer" → "Server beitreten"
 3. Suche nach dem Server oder gib IP ein""",
-            
-            "Sons of the Forest": f"""1. Starte Sons of the Forest
-2. Wähle "Multiplayer" → "Beitreten"
-3. Wähle "Dediziert" als Quelle
-4. Suche Server in Liste oder füge als Favorit hinzu
-5. Alternativ: Steam → Ansicht → Server → Favoriten
-   → Server hinzufügen: {ip}:{port}""",
             
             "Space Engineers": f"""1. Starte Space Engineers
 2. Wähle "Server beitreten"
@@ -7268,10 +8106,10 @@ class GameServerManagerApp(ctk.CTk):
                 self.server_instances[new_id] = ServerInstance(
                     new_id,
                     server_config,
-                    self.config_manager,
+                    game_info,
+                    self.config_manager.get_text,
                     discord_notifier=self.discord_notifier
                 )
-                
                 
                 imported_count += 1
             
@@ -7584,8 +8422,7 @@ class GameServerManagerApp(ctk.CTk):
             self.config_manager.save_app_config()
             
             # Web-Label aktualisieren
-            # TODO: web_label als Attribut speichern oder entfernen
-            # self.web_label.configure(text=f"🌐 localhost:{new_port}")
+            self.web_label.configure(text=f"🌐 localhost:{new_port}")
             
             # Theme sofort anwenden
             ctk.set_appearance_mode(new_theme)
@@ -9977,6 +10814,33 @@ spawn-protection=0
                 instance.log(f"📂 Savegame-Ordner geöffnet: {save_dir}")
         else:
             messagebox.showwarning("Nicht gefunden", "Savegame-Ordner existiert noch nicht.\nServer zuerst starten!")
+
+    def set_conan_auto_mod_update(self, server_id, enabled):
+        server_config = self.config_manager.servers.get(server_id)
+        if not server_config or server_config.get("game") != "Conan Exiles":
+            return
+        server_config["conan_auto_mod_update"] = bool(enabled)
+        self.config_manager.save_servers()
+        instance = self.server_instances.get(server_id)
+        if instance:
+            instance.config = server_config
+            instance.log(f"🧩 Conan Auto-Mod-Update {'aktiviert' if enabled else 'deaktiviert'}")
+
+    def sync_conan_mods_now(self, server_id):
+        server_config = self.config_manager.servers.get(server_id)
+        instance = self.server_instances.get(server_id)
+        if not server_config or server_config.get("game") != "Conan Exiles" or not instance:
+            return
+
+        def do_sync():
+            ok = instance.sync_conan_mods()
+            self.after(0, lambda: self.select_server(server_id))
+            if ok:
+                self.after(0, lambda: messagebox.showinfo("Conan Mods", "Conan Mod-Sync abgeschlossen."))
+            else:
+                self.after(0, lambda: messagebox.showwarning("Conan Mods", "Conan Mod-Sync fehlgeschlagen. Bitte Logs prüfen."))
+
+        threading.Thread(target=do_sync, daemon=True).start()
     
     # ============ END CONAN EXILES FUNKTIONEN ============
     
@@ -10090,97 +10954,6 @@ spawn-protection=0
             instance.log(f"📋 Logs-Ordner geöffnet: {logs_dir}")
     
     # ============ END ENSHROUDED FUNKTIONEN ============
-    
-    # ============ SONS OF THE FOREST FUNKTIONEN ============
-    
-    def create_sotf_config_template(self, server_id):
-        """Erstellt eine Sons of the Forest Config-Vorlage (dedicatedserver.cfg)"""
-        server_config = self.config_manager.servers.get(server_id, {})
-        server_dir = os.path.join(PATHS["servers"], server_id)
-        userdata_dir = os.path.join(server_dir, "userdata")
-        config_file = os.path.join(userdata_dir, "dedicatedserver.cfg")
-        
-        # Ports aus Config
-        port = server_config.get("port", 8766)
-        query_port = server_config.get("query_port", 27016)
-        
-        template = {
-            "IpAddress": "0.0.0.0",
-            "GamePort": port,
-            "QueryPort": query_port,
-            "BlobSyncPort": 9700,
-            "ServerName": server_config.get("name", "Sons of the Forest Server"),
-            "MaxPlayers": 8,
-            "Password": "",
-            "LanOnly": False,
-            "SaveSlot": 1,
-            "SaveMode": "Continue",
-            "GameMode": "Normal",
-            "SaveInterval": 600,
-            "IdleDayCycleSpeed": 0.0,
-            "IdleTargetFramerate": 5,
-            "ActiveTargetFramerate": 60,
-            "LogFilesEnabled": True,
-            "TimestampLogFilenames": True,
-            "TimestampLogEntries": True,
-            "SkipNetworkAccessibilityTest": True,
-            "GameSettings": {},
-            "CustomGameModeSettings": {}
-        }
-        
-        import json
-        os.makedirs(userdata_dir, exist_ok=True)
-        with open(config_file, 'w', encoding='utf-8') as f:
-            json.dump(template, f, indent=2)
-        
-        messagebox.showinfo("✅ Erstellt", f"Config-Vorlage erstellt:\n{config_file}\n\nWichtige Einstellungen:\n- ServerName: Servername\n- MaxPlayers: Max. Spieler (1-8)\n- Password: Passwort (leer = kein PW)\n- GameMode: Normal/Hard/Peaceful")
-        
-        # Öffnen
-        if os.name == 'nt':
-            os.startfile(config_file)
-        else:
-            subprocess.run(["xdg-open", config_file])
-    
-    def create_sotf_owners_whitelist(self, server_id):
-        """Erstellt/öffnet die Server-Owners Whitelist für Admin-Rechte"""
-        server_dir = os.path.join(PATHS["servers"], server_id)
-        userdata_dir = os.path.join(server_dir, "userdata")
-        whitelist_file = os.path.join(userdata_dir, "ownerswhitelist.txt")
-        
-        os.makedirs(userdata_dir, exist_ok=True)
-        
-        if not os.path.exists(whitelist_file):
-            with open(whitelist_file, 'w', encoding='utf-8') as f:
-                f.write("# Sons of the Forest Server Owners\n")
-                f.write("# Füge hier die Steam IDs der Server-Admins ein (eine pro Zeile)\n")
-                f.write("# Steam ID finden: Steam → Dein Name → Accountdetails\n")
-                f.write("# Beispiel:\n")
-                f.write("# 76561198012345678\n")
-        
-        messagebox.showinfo("📋 Admin-Liste", f"Owners Whitelist:\n{whitelist_file}\n\nFüge Steam IDs hinzu für Admin-Rechte im Spiel.")
-        
-        if os.name == 'nt':
-            os.startfile(whitelist_file)
-        else:
-            subprocess.run(["xdg-open", whitelist_file])
-    
-    def open_sotf_saves_folder(self, server_id):
-        """Öffnet den Sons of the Forest Savegame-Ordner"""
-        server_dir = os.path.join(PATHS["servers"], server_id)
-        save_dir = os.path.join(server_dir, "userdata", "Saves")
-        
-        os.makedirs(save_dir, exist_ok=True)
-        
-        if os.name == 'nt':
-            os.startfile(save_dir)
-        else:
-            subprocess.run(["xdg-open", save_dir])
-        
-        instance = self.server_instances.get(server_id)
-        if instance:
-            instance.log(f"📂 Saves-Ordner geöffnet: {save_dir}")
-    
-    # ============ END SONS OF THE FOREST FUNKTIONEN ============
     
     # ============ UNIVERSAL SERVER FOLDER FUNKTIONEN ============
     
@@ -10742,6 +11515,11 @@ pause
             
             if mod_id not in server_config["mods"]:
                 server_config["mods"].append(mod_id)
+                if "mod_names" not in server_config or not isinstance(server_config.get("mod_names"), dict):
+                    server_config["mod_names"] = {}
+                fetched = fetch_workshop_mod_names([mod_id])
+                if fetched.get(mod_id):
+                    server_config["mod_names"][mod_id] = fetched[mod_id]
                 self.config_manager.save_servers()
                 
                 instance = self.server_instances.get(server_id)
@@ -10758,6 +11536,8 @@ pause
         if server_config and "mods" in server_config:
             if mod_id in server_config["mods"]:
                 server_config["mods"].remove(mod_id)
+                if isinstance(server_config.get("mod_names"), dict) and mod_id in server_config["mod_names"]:
+                    del server_config["mod_names"][mod_id]
                 self.config_manager.save_servers()
                 
                 instance = self.server_instances.get(server_id)
@@ -10775,6 +11555,9 @@ pause
     
     def start_services(self):
         """Startet Hintergrund-Services"""
+        # Laufzeit für Chat/Stream initialisieren
+        self.init_chat_runtime()
+
         # Web-Server starten
         self.start_web_server()
         
@@ -10817,6 +11600,15 @@ pause
         
         flask_app = Flask(__name__)
         flask_app.secret_key = secrets.token_hex(32)
+        flask_app.config['MAX_CONTENT_LENGTH'] = CONAN_UPLOAD_MAX_BYTES
+
+        @flask_app.errorhandler(RequestEntityTooLarge)
+        def handle_upload_too_large(_err):
+            limit_gb = CONAN_UPLOAD_MAX_BYTES / (1024 * 1024 * 1024)
+            return jsonify({
+                'success': False,
+                'message': f'Datei zu groß. Maximal {limit_gb:.0f} GB erlaubt.'
+            }), 413
         
         # Logging deaktivieren
         import logging
@@ -10825,10 +11617,56 @@ pause
         
         # Session Token speichern
         valid_sessions = {}
+
+        def get_chat_user_id():
+            token = session.get('token', '')
+            if not token:
+                return None
+            return token[:12]
+
+        def is_tailscale_client(ip_text):
+            if not ip_text:
+                return False
+            ip_text = ip_text.strip()
+            if ip_text in ('127.0.0.1', '::1'):
+                return True
+            try:
+                ip_obj = ipaddress.ip_address(ip_text)
+                if isinstance(ip_obj, ipaddress.IPv4Address):
+                    return ip_obj in ipaddress.ip_network('100.64.0.0/10')
+                return ip_obj in ipaddress.ip_network('fd7a:115c:a1e0::/48')
+            except Exception:
+                return False
+
+        def get_client_ip():
+            """Ermittelt die Client-IP ohne ungeprueftem Proxy-Trust."""
+            remote_addr = (request.remote_addr or '').strip()
+            trusted_proxy_ips = {'127.0.0.1', '::1', '::ffff:127.0.0.1'}
+            if remote_addr in trusted_proxy_ips:
+                forwarded = request.headers.get('X-Forwarded-For', '')
+                if forwarded:
+                    forwarded_ip = forwarded.split(',')[0].strip()
+                    if forwarded_ip:
+                        return forwarded_ip
+            return remote_addr
+
+        def ensure_chat_access():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            chat_cfg = app_instance.get_chat_stream_config()
+            if not chat_cfg.get('enabled', False):
+                return jsonify({'error': 'Chat/Stream ist deaktiviert'}), 503
+
+            if chat_cfg.get('require_tailscale', True):
+                remote_ip = get_client_ip()
+                if not is_tailscale_client(remote_ip):
+                    return jsonify({'error': 'Zugriff nur über Tailscale erlaubt'}), 403
+            return None
         
         @flask_app.route('/')
         def index():
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return redirect('/login')
             return render_template_string(get_web_template(config_manager))
         
@@ -10850,18 +11688,225 @@ pause
                 valid_sessions.pop(session['token'], None)
                 session.pop('token', None)
             return redirect('/login')
+
+        @flask_app.route('/chat')
+        def chat_page():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return redirect('/login')
+
+            chat_cfg = app_instance.get_chat_stream_config()
+            if not chat_cfg.get('enabled', False):
+                return render_template_string(get_chat_disabled_template(config_manager))
+
+            if chat_cfg.get('require_tailscale', True):
+                remote_ip = get_client_ip()
+                if not is_tailscale_client(remote_ip):
+                    return render_template_string(get_chat_forbidden_template(config_manager))
+
+            return render_template_string(get_chat_template(config_manager))
+
+        @flask_app.route('/api/chat/bootstrap')
+        def api_chat_bootstrap():
+            denied = ensure_chat_access()
+            if denied:
+                return denied
+
+            user_id = get_chat_user_id()
+            if not user_id:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            now = time.time()
+            with app_instance.chat_runtime['lock']:
+                app_instance.chat_runtime['presence'][user_id] = now
+                active_users = [uid for uid, ts in app_instance.chat_runtime['presence'].items() if now - ts <= 35]
+                room_name = app_instance.get_chat_stream_config().get('room_name', 'Private Room')
+
+            return jsonify({'success': True, 'user_id': user_id, 'room_name': room_name, 'active_users': active_users})
+
+        @flask_app.route('/api/chat/ping', methods=['POST'])
+        def api_chat_ping():
+            denied = ensure_chat_access()
+            if denied:
+                return denied
+
+            user_id = get_chat_user_id()
+            if not user_id:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            now = time.time()
+            with app_instance.chat_runtime['lock']:
+                app_instance.chat_runtime['presence'][user_id] = now
+                stale = [uid for uid, ts in app_instance.chat_runtime['presence'].items() if now - ts > 60]
+                for uid in stale:
+                    app_instance.chat_runtime['presence'].pop(uid, None)
+
+            return jsonify({'success': True})
+
+        @flask_app.route('/api/chat/messages', methods=['GET', 'POST'])
+        def api_chat_messages():
+            denied = ensure_chat_access()
+            if denied:
+                return denied
+
+            user_id = get_chat_user_id()
+            if not user_id:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            if request.method == 'POST':
+                payload = request.get_json(silent=True) or {}
+                msg = str(payload.get('message', '')).strip()
+                if not msg:
+                    return jsonify({'success': False, 'message': 'Leere Nachricht'})
+                if len(msg) > 800:
+                    msg = msg[:800]
+
+                with app_instance.chat_runtime['lock']:
+                    app_instance.chat_runtime['message_seq'] += 1
+                    item = {
+                        'id': app_instance.chat_runtime['message_seq'],
+                        'user_id': user_id,
+                        'message': msg,
+                        'ts': datetime.now().strftime('%H:%M:%S')
+                    }
+                    app_instance.chat_runtime['messages'].append(item)
+                    if len(app_instance.chat_runtime['messages']) > 500:
+                        app_instance.chat_runtime['messages'] = app_instance.chat_runtime['messages'][-500:]
+                return jsonify({'success': True})
+
+            since = request.args.get('since', '0')
+            try:
+                since_id = int(since)
+            except:
+                since_id = 0
+
+            with app_instance.chat_runtime['lock']:
+                data = [m for m in app_instance.chat_runtime['messages'] if m['id'] > since_id]
+            return jsonify({'success': True, 'messages': data})
+
+        @flask_app.route('/api/chat/signals', methods=['GET', 'POST'])
+        def api_chat_signals():
+            denied = ensure_chat_access()
+            if denied:
+                return denied
+
+            user_id = get_chat_user_id()
+            if not user_id:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            if request.method == 'POST':
+                payload = request.get_json(silent=True) or {}
+                signal_type = str(payload.get('type', '')).strip()
+                body = payload.get('data', {})
+                target = str(payload.get('target', '')).strip() or None
+
+                if signal_type not in ('offer', 'answer', 'ice', 'control'):
+                    return jsonify({'success': False, 'message': 'Ungültiger Signal-Typ'})
+
+                with app_instance.chat_runtime['lock']:
+                    app_instance.chat_runtime['signal_seq'] += 1
+                    signal = {
+                        'id': app_instance.chat_runtime['signal_seq'],
+                        'from': user_id,
+                        'target': target,
+                        'type': signal_type,
+                        'data': body,
+                        'ts': time.time()
+                    }
+                    app_instance.chat_runtime['signals'].append(signal)
+                    if len(app_instance.chat_runtime['signals']) > 1200:
+                        app_instance.chat_runtime['signals'] = app_instance.chat_runtime['signals'][-1200:]
+                return jsonify({'success': True})
+
+            since = request.args.get('since', '0')
+            try:
+                since_id = int(since)
+            except:
+                since_id = 0
+
+            with app_instance.chat_runtime['lock']:
+                out = []
+                for s in app_instance.chat_runtime['signals']:
+                    if s['id'] <= since_id:
+                        continue
+                    if s['from'] == user_id:
+                        continue
+                    if s['target'] and s['target'] != user_id:
+                        continue
+                    out.append(s)
+            return jsonify({'success': True, 'signals': out})
+
+        @flask_app.route('/api/chat/status')
+        def api_chat_status():
+            denied = ensure_chat_access()
+            if denied:
+                return denied
+
+            now = time.time()
+            with app_instance.chat_runtime['lock']:
+                users = [uid for uid, ts in app_instance.chat_runtime['presence'].items() if now - ts <= 35]
+            return jsonify({'success': True, 'active_users': users, 'ts3_running': app_instance.is_teamspeak3_running()})
+
+        @flask_app.route('/api/services/status')
+        def api_services_status():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+            payload = app_instance.get_service_status_payload()
+            payload['success'] = True
+            return jsonify(payload)
+
+        @flask_app.route('/api/services/chat/start', methods=['POST'])
+        def api_services_chat_start():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+            app_instance.set_chat_stream_enabled(True)
+            payload = app_instance.get_service_status_payload()
+            return jsonify({'success': True, 'message': 'Chat/Stream aktiviert', **payload})
+
+        @flask_app.route('/api/services/chat/stop', methods=['POST'])
+        def api_services_chat_stop():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+            app_instance.set_chat_stream_enabled(False)
+            payload = app_instance.get_service_status_payload()
+            return jsonify({'success': True, 'message': 'Chat/Stream deaktiviert', **payload})
+
+        @flask_app.route('/api/services/teamspeak/start', methods=['POST'])
+        def api_services_teamspeak_start():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+            ok, msg = app_instance.start_teamspeak3_server()
+            payload = app_instance.get_service_status_payload()
+            status = 200 if ok else 400
+            return jsonify({'success': ok, 'message': msg, **payload}), status
+
+        @flask_app.route('/api/services/teamspeak/stop', methods=['POST'])
+        def api_services_teamspeak_stop():
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+            ok, msg = app_instance.stop_teamspeak3_server()
+            payload = app_instance.get_service_status_payload()
+            status = 200 if ok else 400
+            return jsonify({'success': ok, 'message': msg, **payload}), status
+
         
         @flask_app.route('/api/servers')
         def api_servers():
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             servers = []
             for server_id, server_config in config_manager.servers.items():
                 instance = app_instance.server_instances.get(server_id)
+                conan_status = None
+                if server_config.get('game') == 'Conan Exiles' and instance:
+                    try:
+                        conan_status = instance.get_conan_mod_status()
+                    except Exception:
+                        conan_status = None
                 servers.append({
                     'id': server_id,
                     'name': server_config.get('name', 'Server'),
+                    'icon': SUPPORTED_GAMES.get(server_config.get('game', ''), {}).get('icon', '🎮'),
                     'game': server_config.get('game', ''),
                     'map': server_config.get('map_name', server_config.get('map', '')),
                     'port': server_config.get('port', 0),
@@ -10871,6 +11916,11 @@ pause
                     'installed': server_config.get('installed', False),
                     'uptime': instance.get_uptime() if instance else '-',
                     'mods': server_config.get('mods', []),
+                    'mod_names': server_config.get('mod_names', {}),
+                    'conan_auto_mod_update': server_config.get('conan_auto_mod_update', True if server_config.get('game') == 'Conan Exiles' else False),
+                    'conan_mod_sync': server_config.get('conan_mod_sync', {}),
+                    'conan_mod_upload': server_config.get('conan_mod_upload', {}),
+                    'conan_mod_status': conan_status,
                     'auto_restart': server_config.get('auto_restart', True),
                     'auto_backup': server_config.get('auto_backup', False),
                     'backup_interval': server_config.get('backup_interval_hours', 0)
@@ -10879,7 +11929,7 @@ pause
         
         @flask_app.route('/api/server/<server_id>/details')
         def api_server_details(server_id):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             server_config = config_manager.servers.get(server_id, {})
@@ -10899,7 +11949,7 @@ pause
         
         @flask_app.route('/api/server/<server_id>/mods', methods=['POST'])
         def api_add_mod(server_id):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             data = request.get_json()
@@ -10917,15 +11967,20 @@ pause
             
             if mod_id in server_config['mods']:
                 return jsonify({'success': False, 'message': 'Mod bereits vorhanden'})
-            
+
             server_config['mods'].append(mod_id)
+            if 'mod_names' not in server_config or not isinstance(server_config.get('mod_names'), dict):
+                server_config['mod_names'] = {}
+            fetched = fetch_workshop_mod_names([mod_id])
+            if fetched.get(mod_id):
+                server_config['mod_names'][mod_id] = fetched[mod_id]
             config_manager.save_servers()
-            
+
             return jsonify({'success': True, 'message': f'Mod {mod_id} hinzugefügt', 'mods': server_config['mods']})
         
         @flask_app.route('/api/server/<server_id>/mods/<mod_id>', methods=['DELETE'])
         def api_remove_mod(server_id, mod_id):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             server_config = config_manager.servers.get(server_id)
@@ -10934,15 +11989,164 @@ pause
             
             if 'mods' not in server_config or mod_id not in server_config['mods']:
                 return jsonify({'success': False, 'message': 'Mod nicht gefunden'})
-            
+
             server_config['mods'].remove(mod_id)
+            if isinstance(server_config.get('mod_names'), dict) and mod_id in server_config['mod_names']:
+                del server_config['mod_names'][mod_id]
             config_manager.save_servers()
-            
+
             return jsonify({'success': True, 'message': f'Mod {mod_id} entfernt', 'mods': server_config['mods']})
+
+        @flask_app.route('/api/server/<server_id>/conan/mods/status')
+        def api_conan_mod_status(server_id):
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            server_config = config_manager.servers.get(server_id)
+            if not server_config or server_config.get('game') != 'Conan Exiles':
+                return jsonify({'success': False, 'message': 'Kein Conan Exiles Server'})
+
+            instance = app_instance.server_instances.get(server_id)
+            if not instance:
+                return jsonify({'success': False, 'message': 'Server nicht gefunden'})
+
+            status = instance.get_conan_mod_status()
+            return jsonify({'success': True, 'status': status, 'auto_mod_update': server_config.get('conan_auto_mod_update', True)})
+
+        @flask_app.route('/api/server/<server_id>/conan/mods/sync', methods=['POST'])
+        def api_conan_mod_sync(server_id):
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            server_config = config_manager.servers.get(server_id)
+            if not server_config or server_config.get('game') != 'Conan Exiles':
+                return jsonify({'success': False, 'message': 'Kein Conan Exiles Server'})
+
+            instance = app_instance.server_instances.get(server_id)
+            if not instance:
+                return jsonify({'success': False, 'message': 'Server nicht gefunden'})
+
+            def do_sync():
+                instance.sync_conan_mods()
+
+            threading.Thread(target=do_sync, daemon=True).start()
+            return jsonify({'success': True, 'message': 'Conan Mod-Sync gestartet'})
+
+        @flask_app.route('/api/server/<server_id>/conan/mods/auto-start', methods=['POST'])
+        def api_conan_mod_auto_start(server_id):
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            server_config = config_manager.servers.get(server_id)
+            if not server_config or server_config.get('game') != 'Conan Exiles':
+                return jsonify({'success': False, 'message': 'Kein Conan Exiles Server'})
+
+            data = request.get_json() or {}
+            enabled = bool(data.get('enabled', True))
+            server_config['conan_auto_mod_update'] = enabled
+            config_manager.save_servers()
+            return jsonify({'success': True, 'message': f'Conan Auto-Mod-Update {'aktiviert' if enabled else 'deaktiviert'}', 'enabled': enabled})
+
+        @flask_app.route('/api/server/<server_id>/conan/mods/upload', methods=['POST'])
+        def api_conan_mod_upload(server_id):
+            if 'token' not in session or session['token'] not in valid_sessions:
+                return jsonify({'error': 'Unauthorized'}), 401
+
+            server_config = config_manager.servers.get(server_id)
+            if not server_config or server_config.get('game') != 'Conan Exiles':
+                return jsonify({'success': False, 'message': 'Kein Conan Exiles Server'})
+
+            instance = app_instance.server_instances.get(server_id)
+            if not instance:
+                return jsonify({'success': False, 'message': 'Server nicht gefunden'})
+
+            upload = request.files.get('mod_file')
+            if not upload:
+                return jsonify({'success': False, 'message': 'Keine Datei empfangen'})
+
+            safe_name = _sanitize_pak_filename(upload.filename)
+            if not safe_name:
+                return jsonify({'success': False, 'message': 'Nur .pak Dateien sind erlaubt'})
+
+            mods_dir = instance.get_conan_mods_dir()
+            os.makedirs(mods_dir, exist_ok=True)
+
+            target_path = os.path.join(mods_dir, safe_name)
+            backup_created = None
+            bytes_written = 0
+            client_ip = get_client_ip() or '?'
+
+            server_config['conan_mod_upload'] = {
+                'last_run': datetime.now().isoformat(),
+                'success': False,
+                'message': f'Upload läuft: {safe_name}',
+                'file': safe_name,
+                'size_bytes': 0
+            }
+            config_manager.save_servers()
+            instance.log(f"⬆ Conan Upload gestartet: {safe_name} von {client_ip}")
+
+            try:
+                if os.path.exists(target_path):
+                    backup_dir = os.path.join(mods_dir, '_backup')
+                    os.makedirs(backup_dir, exist_ok=True)
+                    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+                    backup_name = f"{os.path.splitext(safe_name)[0]}_{timestamp}.pak"
+                    backup_path = os.path.join(backup_dir, backup_name)
+                    shutil.copy2(target_path, backup_path)
+                    backup_created = backup_path
+
+                tmp_path = target_path + '.uploading'
+                with open(tmp_path, 'wb') as out:
+                    while True:
+                        chunk = upload.stream.read(2 * 1024 * 1024)
+                        if not chunk:
+                            break
+                        bytes_written += len(chunk)
+                        out.write(chunk)
+                os.replace(tmp_path, target_path)
+                added_to_modlist = instance.ensure_conan_modlist_entry(safe_name)
+
+                msg = f'Mod hochgeladen: {safe_name}'
+                if backup_created:
+                    msg += ' (vorherige Version gesichert)'
+                if added_to_modlist:
+                    msg += ' (modlist aktualisiert)'
+                instance.log(f"🧩 Conan Upload: {safe_name}")
+                if backup_created:
+                    instance.log(f"💾 Backup erstellt: {backup_created}")
+                if added_to_modlist:
+                    instance.log(f"📝 modlist.txt ergänzt: *{safe_name}")
+                server_config['conan_mod_upload'] = {
+                    'last_run': datetime.now().isoformat(),
+                    'success': True,
+                    'message': f'Upload erfolgreich: {safe_name}',
+                    'file': safe_name,
+                    'size_bytes': bytes_written,
+                    'backup': backup_created or ''
+                }
+                config_manager.save_servers()
+                return jsonify({'success': True, 'message': msg, 'file': safe_name, 'backup': backup_created})
+            except Exception as e:
+                try:
+                    tmp_path = target_path + '.uploading'
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except Exception:
+                    pass
+                server_config['conan_mod_upload'] = {
+                    'last_run': datetime.now().isoformat(),
+                    'success': False,
+                    'message': f'Upload fehlgeschlagen: {e}',
+                    'file': safe_name,
+                    'size_bytes': bytes_written
+                }
+                config_manager.save_servers()
+                return jsonify({'success': False, 'message': f'Upload fehlgeschlagen: {e}'})
         
         @flask_app.route('/api/server/<server_id>/logs')
         def api_server_logs(server_id):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             instance = app_instance.server_instances.get(server_id)
@@ -10954,12 +12158,23 @@ pause
         
         @flask_app.route('/api/server/<server_id>/update', methods=['POST'])
         def api_update_server(server_id):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
+
+            server_config = config_manager.servers.get(server_id)
+            if not server_config:
+                return jsonify({'success': False, 'message': 'Server nicht gefunden'})
             
             instance = app_instance.server_instances.get(server_id)
             if not instance:
                 return jsonify({'success': False, 'message': 'Server nicht gefunden'})
+
+            if not instance.is_installed():
+                return jsonify({'success': False, 'message': 'Server ist nicht installiert'})
+
+            game_info = SUPPORTED_GAMES.get(server_config.get('game', ''), {})
+            if not game_info.get('app_id'):
+                return jsonify({'success': False, 'message': 'Für dieses Spiel ist kein SteamCMD-Update konfiguriert'})
             
             # Update in Thread starten
             def do_update():
@@ -10970,7 +12185,7 @@ pause
         
         @flask_app.route('/api/server/<server_id>/<action>', methods=['POST'])
         def api_server_action(server_id, action):
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             instance = app_instance.server_instances.get(server_id)
@@ -11009,7 +12224,7 @@ pause
         @flask_app.route('/api/server/<server_id>/backups')
         def api_get_backups(server_id):
             """Listet alle Backups eines Servers"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             instance = app_instance.server_instances.get(server_id)
@@ -11034,7 +12249,7 @@ pause
         @flask_app.route('/api/server/<server_id>/backups/restore', methods=['POST'])
         def api_restore_backup(server_id):
             """Stellt ein Backup wieder her"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             instance = app_instance.server_instances.get(server_id)
@@ -11058,7 +12273,7 @@ pause
         @flask_app.route('/api/server/<server_id>/backups/delete', methods=['POST'])
         def api_delete_backup(server_id):
             """Löscht ein Backup"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             instance = app_instance.server_instances.get(server_id)
@@ -11076,7 +12291,7 @@ pause
         @flask_app.route('/api/server/<server_id>/configs')
         def api_get_configs(server_id):
             """Listet alle Config-Dateien eines Servers"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             server_config = config_manager.servers.get(server_id, {})
@@ -11110,7 +12325,7 @@ pause
         @flask_app.route('/api/server/<server_id>/config/read', methods=['POST'])
         def api_read_config(server_id):
             """Liest eine Config-Datei (mit Pfad-Validierung)"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             data = request.get_json()
@@ -11141,7 +12356,7 @@ pause
         @flask_app.route('/api/server/<server_id>/config/save', methods=['POST'])
         def api_save_config(server_id):
             """Speichert eine Config-Datei (mit Pfad-Validierung)"""
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             data = request.get_json()
@@ -11169,7 +12384,7 @@ pause
         
         @flask_app.route('/api/status')
         def api_status():
-            if 'token' not in session or (not SECURITY_AVAILABLE or not session_store or not session_store.validate(session['token'], get_client_ip())):
+            if 'token' not in session or session['token'] not in valid_sessions:
                 return jsonify({'error': 'Unauthorized'}), 401
             
             return jsonify({
@@ -11492,6 +12707,87 @@ def get_web_template(config_manager):
         }}
         .stat-value {{ font-size: 1.8em; color: #00d4ff; font-weight: bold; }}
         .stat-label {{ color: #888; margin-top: 5px; font-size: 0.85em; }}
+        .services-panel {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+        .service-card {{
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 12px;
+            padding: 14px;
+        }}
+        .service-title {{ font-weight: bold; color: #00d4ff; margin-bottom: 8px; }}
+        .service-state {{ font-size: 0.9em; margin-bottom: 10px; }}
+        .service-state.online {{ color: #00ff88; }}
+        .service-state.offline {{ color: #ff7b7b; }}
+        .service-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+        .game-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }}
+        .game-tile {{
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 15px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid rgba(0,212,255,0.1);
+        }}
+        .game-tile:hover {{
+            transform: translateY(-5px);
+            border-color: rgba(0,212,255,0.5);
+            box-shadow: 0 10px 30px rgba(0,212,255,0.2);
+        }}
+        .game-tile-icon {{
+            font-size: 3em;
+            margin-bottom: 15px;
+            text-align: center;
+        }}
+        .game-tile-name {{
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #00d4ff;
+            text-align: center;
+            margin-bottom: 10px;
+        }}
+        .game-tile-count {{
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }}
+        .count-item {{ text-align: center; }}
+        .count-value {{
+            font-size: 1.8em;
+            font-weight: bold;
+        }}
+        .count-label {{
+            font-size: 0.8em;
+            opacity: 0.6;
+            margin-top: 5px;
+        }}
+        .count-total {{ color: #00d4ff; }}
+        .count-online {{ color: #00ff88; }}
+        .count-offline {{ color: #ff4444; }}
+        .view-toolbar {{
+            display: flex;
+            justify-content: flex-start;
+            margin: 0 0 16px 0;
+            padding: 0 20px;
+        }}
+        .btn-overview {{
+            background: #37474F;
+            color: #fff;
+        }}
+        .btn-overview:hover {{
+            background: #455A64;
+        }}
         .servers {{ display: grid; gap: 20px; }}
         .server-card {{
             background: rgba(255,255,255,0.05);
@@ -11546,6 +12842,7 @@ def get_web_template(config_manager):
         .btn-start {{ background: #00ff88; color: #000; }}
         .btn-stop {{ background: #ff6b6b; color: #fff; }}
         .btn-restart {{ background: #ffaa00; color: #000; }}
+        .btn-update {{ background: #20c997; color: #062b22; }}
         .btn-backup {{ background: #2196F3; color: #fff; }}
         .btn-config {{ background: #795548; color: #fff; }}
         .btn-logs {{ background: #607D8B; color: #fff; }}
@@ -11596,6 +12893,37 @@ def get_web_template(config_manager):
             align-items: center;
             gap: 5px;
         }}
+        .mod-row {{
+            background: rgba(52, 62, 97, 0.35);
+            border: 1px solid rgba(133, 171, 255, 0.2);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.82em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #d6e4ff;
+        }}
+        .mod-row .mod-id {{ color: #8fb4ff; font-family: Consolas, monospace; }}
+        .mod-row .mod-name {{ color: #e6f0ff; }}
+        .mod-row .mod-state {{ margin-left: auto; font-size: 0.78em; opacity: 0.85; }}
+        .mod-row .mod-state.ok {{ color: #64ff9a; }}
+        .mod-row .mod-state.missing {{ color: #ffb86c; }}
+        .mod-row .remove {{ cursor: pointer; color: #ff6b6b; font-weight: bold; margin-left: 6px; }}
+        .mod-row .remove:hover {{ color: #ff8d8d; }}
+        .mod-actions {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }}
+        .btn-small {{ padding: 7px 10px; font-size: 0.78em; border-radius: 6px; }}
+        .mod-sync-meta {{ margin-top: 8px; font-size: 0.78em; color: #8ea3c8; }}
+        .mod-upload {{ margin-top: 10px; padding: 10px; border: 1px dashed rgba(133,171,255,0.35); border-radius: 8px; background: rgba(20,30,54,0.4); }}
+        .mod-upload-title {{ font-size: 0.82em; color: #9fc0ff; margin-bottom: 6px; }}
+        .mod-upload-row {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
+        .mod-upload-row input[type="file"] {{ color: #d7e6ff; font-size: 0.8em; max-width: 360px; }}
+        .mod-dropdown {{ margin-top: 10px; border: 1px solid rgba(133,171,255,0.22); border-radius: 8px; background: rgba(19,29,50,0.45); }}
+        .mod-dropdown summary {{ cursor: pointer; list-style: none; padding: 8px 10px; color: #cfe1ff; font-size: 0.82em; font-weight: 600; }}
+        .mod-dropdown summary::-webkit-details-marker {{ display: none; }}
+        .mod-dropdown summary::before {{ content: '▸'; margin-right: 6px; color: #8fb4ff; }}
+        .mod-dropdown[open] summary::before {{ content: '▾'; }}
+        .mod-dropdown-body {{ padding: 0 10px 10px 10px; }}
         .mod-tag .remove {{ cursor: pointer; color: #ff6b6b; font-weight: bold; }}
         .mod-tag .remove:hover {{ color: #ff0000; }}
         .add-mod {{ display: flex; gap: 8px; margin-top: 10px; }}
@@ -11754,6 +13082,8 @@ def get_web_template(config_manager):
             <h1>🎮 {APP_NAME}</h1>
             <div class="header-right">
                 <span class="version">v{VERSION}</span>
+                <a class="header-btn settings" href="/chat">💬 Chat & Stream</a>
+                <button class="header-btn settings" onclick="openTeamSpeakClient()">🎙️ TeamSpeak öffnen</button>
                 <button class="header-btn update" onclick="checkForUpdates()">📦 Update</button>
                 <button class="header-btn settings" onclick="showSettings()">⚙️ Einstellungen</button>
                 <a href="/logout" class="logout">🚪 Ausloggen</a>
@@ -11761,14 +13091,6 @@ def get_web_template(config_manager):
         </header>
         
         <div class="stats">
-            <div class="stat-box">
-                <div class="stat-value" id="cpu">--%</div>
-                <div class="stat-label">CPU</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="ram">--%</div>
-                <div class="stat-label">RAM</div>
-            </div>
             <div class="stat-box">
                 <div class="stat-value" id="server-count">-</div>
                 <div class="stat-label">{t("servers")}</div>
@@ -11778,8 +13100,35 @@ def get_web_template(config_manager):
                 <div class="stat-label">Online</div>
             </div>
         </div>
+
+        <div class="services-panel">
+            <div class="service-card">
+                <div class="service-title">💬 Chat & Stream Dienst</div>
+                <div class="service-state offline" id="chat-service-state">Status lädt...</div>
+                <div class="service-buttons">
+                    <button class="btn btn-start" onclick="serviceAction('chat','start')">▶ Start</button>
+                    <button class="btn btn-stop" onclick="serviceAction('chat','stop')">⏹ Stop</button>
+                    <a class="btn btn-config" href="/chat" style="text-decoration:none;">🌐 Öffnen</a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-title">🎙️ TeamSpeak Dienst</div>
+                <div class="service-state offline" id="ts-service-state">Status lädt...</div>
+                <div class="service-buttons">
+                    <button class="btn btn-start" onclick="serviceAction('teamspeak','start')">▶ Start</button>
+                    <button class="btn btn-stop" onclick="serviceAction('teamspeak','stop')">⏹ Stop</button>
+                    <button class="btn btn-config" onclick="openTeamSpeakClient()">🔗 Verbinden</button>
+                </div>
+            </div>
+        </div>
         
-        <div class="servers" id="servers">
+        <div id="game-grid" class="game-grid"></div>
+
+        <div class="view-toolbar" id="view-toolbar" style="display:none;">
+            <button class="btn btn-overview" onclick="showTilesMode=true;filterGame='';loadServers();">← Zur Übersicht</button>
+        </div>
+        
+        <div class="servers" id="servers" style="display:none;">
             <p style="text-align:center;color:#888;">Loading...</p>
         </div>
     </div>
@@ -11907,10 +13256,54 @@ def get_web_template(config_manager):
         function showSettings() {{
             document.getElementById('settingsModal').style.display = 'flex';
         }}
+
+        function openTeamSpeakClient() {{
+            const host = (location.hostname && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
+                ? location.hostname
+                : '100.112.243.124';
+            const tsUrl = `ts3server://${{host}}?port=9987`;
+            window.location.href = tsUrl;
+        }}
         
         function saveSettings() {{
             showNotification('⚙️ Einstellungen im Desktop-Programm ändern');
             closeModal('settingsModal');
+        }}
+
+        async function loadServiceStatus() {{
+            try {{
+                const res = await fetch('/api/services/status');
+                const data = await res.json();
+                if (!res.ok || data.error) return;
+
+                const chatState = document.getElementById('chat-service-state');
+                const tsState = document.getElementById('ts-service-state');
+
+                if (chatState) {{
+                    const chatOn = !!data.chat_enabled;
+                    chatState.className = 'service-state ' + (chatOn ? 'online' : 'offline');
+                    chatState.textContent = (chatOn ? '🟢 Aktiv' : '🔴 Inaktiv') + ' | ' + (data.chat_url || '');
+                }}
+
+                if (tsState) {{
+                    const tsOn = !!data.teamspeak_running;
+                    tsState.className = 'service-state ' + (tsOn ? 'online' : 'offline');
+                    tsState.textContent = (tsOn ? '🟢 Online' : '🔴 Offline') + ' | ' + (data.teamspeak_label || 'TeamSpeak');
+                }}
+            }} catch (e) {{
+                console.error('Service-Status Fehler:', e);
+            }}
+        }}
+
+        async function serviceAction(serviceName, action) {{
+            try {{
+                const res = await fetch(`/api/services/${{serviceName}}/${{action}}`, {{ method: 'POST' }});
+                const data = await res.json();
+                handleResponse(data, res);
+                await loadServiceStatus();
+            }} catch (e) {{
+                showNotification('Netzwerkfehler: ' + e.message, true);
+            }}
         }}
         
         // ===== LOGS =====
@@ -12152,6 +13545,176 @@ def get_web_template(config_manager):
                 showNotification('Netzwerkfehler: ' + e.message, true);
             }}
         }}
+
+        async function syncConanMods(serverId) {{
+            try {{
+                const res = await fetch('/api/server/' + serverId + '/conan/mods/sync', {{ method: 'POST' }});
+                const data = await res.json();
+                handleResponse(data, res);
+                setTimeout(loadServers, 2500);
+            }} catch (e) {{
+                showNotification('Netzwerkfehler: ' + e.message, true);
+            }}
+        }}
+
+        async function toggleConanAutoModUpdate(serverId, enabled) {{
+            try {{
+                const res = await fetch('/api/server/' + serverId + '/conan/mods/auto-start', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ enabled: !!enabled }})
+                }});
+                const data = await res.json();
+                handleResponse(data, res);
+                setTimeout(loadServers, 500);
+            }} catch (e) {{
+                showNotification('Netzwerkfehler: ' + e.message, true);
+            }}
+        }}
+
+        async function uploadConanMod(serverId) {{
+            const input = document.getElementById('conan-upload-' + serverId);
+            if (!input || !input.files || !input.files.length) {{
+                showNotification('Bitte .pak Datei auswählen', true);
+                return;
+            }}
+
+            const file = input.files[0];
+            if (!file.name.toLowerCase().endsWith('.pak')) {{
+                showNotification('Nur .pak Dateien sind erlaubt', true);
+                return;
+            }}
+
+            const limit = {CONAN_UPLOAD_MAX_BYTES};
+            if (file.size > limit) {{
+                showNotification('Datei zu groß (max. 8 GB)', true);
+                return;
+            }}
+
+            const form = new FormData();
+            form.append('mod_file', file, file.name);
+
+            const statusEl = document.getElementById('conan-upload-status-' + serverId);
+            const setStatus = (text, isError = false) => {{
+                if (!statusEl) return;
+                statusEl.textContent = text;
+                statusEl.style.color = isError ? '#ffb4b4' : '#8ea3c8';
+            }};
+            const formatBytes = (n) => {{
+                const v = Number(n || 0);
+                if (v < 1024) return v + ' B';
+                if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+                if (v < 1024 * 1024 * 1024) return (v / (1024 * 1024)).toFixed(1) + ' MB';
+                return (v / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+            }};
+
+            setStatus('Upload startet: ' + file.name);
+            showNotification('Upload läuft: ' + file.name);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/server/' + serverId + '/conan/mods/upload', true);
+            xhr.withCredentials = true;
+
+            xhr.upload.onprogress = (ev) => {{
+                if (!ev.lengthComputable) {{
+                    setStatus('Upload läuft: ' + file.name + ' (' + formatBytes(ev.loaded) + ')');
+                    return;
+                }}
+                const pct = Math.max(0, Math.min(100, (ev.loaded / ev.total) * 100));
+                setStatus('Upload läuft: ' + file.name + ' - ' + pct.toFixed(1) + '% (' + formatBytes(ev.loaded) + ' / ' + formatBytes(ev.total) + ')');
+            }};
+
+            xhr.onerror = () => {{
+                setStatus('Upload fehlgeschlagen (Netzwerkfehler)', true);
+                showNotification('Upload-Fehler: Netzwerkfehler', true);
+            }};
+
+            xhr.onabort = () => {{
+                setStatus('Upload abgebrochen', true);
+                showNotification('Upload abgebrochen', true);
+            }};
+
+            xhr.onreadystatechange = () => {{
+                if (xhr.readyState !== 4) return;
+                let data = {{ success: false, message: 'Ungültige Serverantwort' }};
+                try {{
+                    data = JSON.parse(xhr.responseText || '{{}}');
+                }} catch (_) {{}}
+
+                if (xhr.status >= 200 && xhr.status < 300 && data.success) {{
+                    setStatus('Upload abgeschlossen: ' + file.name);
+                    handleResponse(data, {{ ok: true }});
+                    input.value = '';
+                    setTimeout(loadServers, 800);
+                    return;
+                }}
+
+                const errMsg = data.message || ('Fehler: HTTP ' + xhr.status);
+                setStatus('Upload fehlgeschlagen: ' + errMsg, true);
+                handleResponse(data, {{ ok: false, status: xhr.status }});
+            }};
+
+            xhr.send(form);
+        }}
+
+        function renderModRows(server) {{
+            const status = server.conan_mod_status || {{}};
+            const configured = Array.isArray(status.configured) ? status.configured : [];
+            if (!configured.length) return '<p style="color:#888; font-size:0.82em;">Keine Mods konfiguriert</p>';
+
+            return configured.map(m => {{
+                const isMissing = Array.isArray(status.missing) && status.missing.some(x => x.id === m.id);
+                return `<div class="mod-row">
+                    <span class="mod-id">${{m.id}}</span>
+                    <span class="mod-name">${{m.name || ('Mod ' + m.id)}}</span>
+                    <span class="mod-state ${{isMissing ? 'missing' : 'ok'}}">${{isMissing ? 'fehlt auf Server' : 'ok'}}</span>
+                </div>`;
+            }}).join('');
+        }}
+
+        function renderConanModOptions(server) {{
+            const status = server.conan_mod_status || {{}};
+            const configured = Array.isArray(status.configured) ? status.configured : [];
+            if (!configured.length) return '<option>Keine Mods konfiguriert</option>';
+            return configured.map(m => `<option>${{m.name || m.id}}</option>`).join('');
+        }}
+        
+        // ===== KACHELN =====
+        var showTilesMode = true;
+        var filterGame = '';
+        
+        function makeTiles(servers) {{
+            const grid = document.getElementById('game-grid');
+            const list = document.getElementById('servers');
+            const toolbar = document.getElementById('view-toolbar');
+            grid.style.display = 'grid';
+            list.style.display = 'none';
+            toolbar.style.display = 'none';
+            
+            const groups = {{}};
+            servers.forEach(s => {{
+                const g = s.game || 'Unknown';
+                if (!groups[g]) groups[g] = {{ icon: s.icon || '🎮', total: 0, online: 0, offline: 0 }};
+                groups[g].total++;
+                if (s.running) groups[g].online++; else groups[g].offline++;
+            }});
+            
+            let html = '';
+            Object.keys(groups).sort((a, b) => a.localeCompare(b, 'de', {{ sensitivity: 'base' }})).forEach(name => {{
+                const d = groups[name];
+                const safeName = name.replace(/'/g, "\\'");
+                html += "<div class=\\"game-tile\\" onclick=\\"showTilesMode=false;filterGame='" + safeName + "';loadServers();\\">";
+                html += "<div class=\\"game-tile-icon\\">" + d.icon + "</div>";
+                html += "<div class=\\"game-tile-name\\">" + name + "</div>";
+                html += "<div class=\\"game-tile-count\\">";
+                html += "<div class=\\"count-item\\"><div class=\\"count-value count-total\\">" + d.total + "</div><div class=\\"count-label\\">Total</div></div>";
+                html += "<div class=\\"count-item\\"><div class=\\"count-value count-online\\">" + d.online + "</div><div class=\\"count-label\\">Online</div></div>";
+                html += "<div class=\\"count-item\\"><div class=\\"count-value count-offline\\">" + d.offline + "</div><div class=\\"count-label\\">Offline</div></div>";
+                html += "</div></div>";
+            }});
+            
+            grid.innerHTML = html || '<p style="text-align:center;opacity:0.5;padding:50px;">Keine Server</p>';
+        }}
         
         // ===== SERVER LIST =====
         async function loadServers() {{
@@ -12164,16 +13727,27 @@ def get_web_template(config_manager):
                     return;
                 }}
                 
-                document.getElementById('server-count').textContent = data.servers.length;
-                document.getElementById('online-count').textContent = data.servers.filter(s => s.running).length;
+                const all = data.servers || [];
+                document.getElementById('server-count').textContent = all.length;
+                document.getElementById('online-count').textContent = all.filter(s => s.running).length;
                 
+                if (showTilesMode) {{
+                    makeTiles(all);
+                    return;
+                }}
+                
+                const filtered = filterGame ? all.filter(s => s.game === filterGame) : all;
+                document.getElementById('game-grid').style.display = 'none';
+                document.getElementById('view-toolbar').style.display = 'flex';
                 const container = document.getElementById('servers');
-                if (data.servers.length === 0) {{
+                container.style.display = 'block';
+                
+                if (filtered.length === 0) {{
                     container.innerHTML = '<p style="text-align:center;color:#888;padding:50px;">{t("no_servers")}</p>';
                     return;
                 }}
             
-            container.innerHTML = data.servers.map(s => `
+            container.innerHTML = filtered.map(s => `
                 <div class="server-card">
                     <div class="server-top">
                         <div class="server-title-area">
@@ -12193,6 +13767,7 @@ def get_web_template(config_manager):
                             <button class="btn btn-start" onclick="serverAction('${{s.id}}', 'start')" ${{!s.installed ? 'disabled' : ''}}>▶ Starten</button>
                             <button class="btn btn-stop" onclick="serverAction('${{s.id}}', 'stop')" ${{!s.installed ? 'disabled' : ''}}>⏹ Stoppen</button>
                             <button class="btn btn-restart" onclick="serverAction('${{s.id}}', 'restart')" ${{!s.installed ? 'disabled' : ''}}>🔄 Neustarten</button>
+                            <button class="btn btn-update" onclick="updateServer('${{s.id}}')" ${{!s.installed ? 'disabled' : ''}}>⬆ Update</button>
                             <button class="btn btn-backup" onclick="showBackups('${{s.id}}', '${{s.name}}')">💾 Backups</button>
                             <button class="btn btn-config" onclick="showConfig('${{s.id}}', '${{s.name}}')">📝 Config</button>
                             <button class="btn btn-logs" onclick="showLogs('${{s.id}}', '${{s.name}}')">📜 Logs</button>
@@ -12219,16 +13794,50 @@ def get_web_template(config_manager):
                         </div>
                     </div>
                     
-                    ${{s.game.includes('ARK') || s.mods && s.mods.length > 0 ? `
+                    ${{(s.game.includes('ARK') || s.game === 'Conan Exiles' || (s.mods && s.mods.length > 0)) ? `
                     <div class="mods-section">
                         <div class="mods-header">
                             <span class="mods-title">🧩 Mods (${{s.mods ? s.mods.length : 0}})</span>
                         </div>
-                        ${{s.mods && s.mods.length > 0 ? `
+
+                        ${{s.game === 'Conan Exiles' ? `
+                        <div class="mod-actions" style="margin-top:8px;">
+                            <select style="min-width:300px; max-width:100%; background:#16233d; color:#dce8ff; border:1px solid #2f446c; border-radius:6px; padding:6px 8px;">
+                                ${{renderConanModOptions(s)}}
+                            </select>
+                        </div>
+                        <details class="mod-dropdown">
+                            <summary>Mod-Liste anzeigen (${{s.conan_mod_status && s.conan_mod_status.configured ? s.conan_mod_status.configured.length : 0}})</summary>
+                            <div class="mod-dropdown-body">
+                                <div class="mods-list">
+                                    ${{renderModRows(s)}}
+                                </div>
+                            </div>
+                        </details>
+                        <div class="mod-actions">
+                            <button class="btn btn-small btn-restart" onclick="syncConanMods('${{s.id}}')">🧩 Mods jetzt syncen</button>
+                            <button class="btn btn-small ${{s.conan_auto_mod_update ? 'btn-start' : 'btn-stop'}}" onclick="toggleConanAutoModUpdate('${{s.id}}', ${{!s.conan_auto_mod_update}})">
+                                ${{s.conan_auto_mod_update ? '✅ Auto-Mod-Update beim Start: AN' : '⏸️ Auto-Mod-Update beim Start: AUS'}}
+                            </button>
+                        </div>
+                        <div class="mod-sync-meta">
+                            ${{s.conan_mod_sync && s.conan_mod_sync.last_run ? ('Letzter Sync: ' + s.conan_mod_sync.last_run + ' - ' + (s.conan_mod_sync.message || '')) : 'Noch kein Mod-Sync ausgeführt'}}
+                        </div>
+                        <div class="mod-sync-meta" id="conan-upload-status-${{s.id}}">
+                            ${{s.conan_mod_upload && s.conan_mod_upload.last_run ? ('Letzter Upload: ' + s.conan_mod_upload.last_run + ' - ' + (s.conan_mod_upload.message || '')) : 'Noch kein Mod-Upload ausgeführt'}}
+                        </div>
+                        <div class="mod-upload">
+                            <div class="mod-upload-title">⬆ Manueller Mod-Upload (.pak, max. 8 GB, erstellt Backup vor Überschreiben)</div>
+                            <div class="mod-upload-row">
+                                <input type="file" id="conan-upload-${{s.id}}" accept=".pak">
+                                <button class="btn btn-small btn-config" onclick="uploadConanMod('${{s.id}}')">Upload .pak</button>
+                            </div>
+                        </div>
+                        ` : (s.mods && s.mods.length > 0 ? `
                         <div class="mods-list">
                             ${{s.mods.map(m => `<span class="mod-tag">${{m}} <span class="remove" onclick="removeMod('${{s.id}}', '${{m}}')">&times;</span></span>`).join('')}}
                         </div>
-                        ` : ''}}
+                        ` : '')}}
                         <div class="add-mod">
                             <input type="text" id="mod-input-${{s.id}}" placeholder="Mod-ID eingeben..." onkeypress="if(event.key==='Enter')addMod('${{s.id}}')">
                             <button onclick="addMod('${{s.id}}')">+ Hinzufügen</button>
@@ -12252,17 +13861,17 @@ def get_web_template(config_manager):
                 showNotification('Netzwerkfehler: ' + e.message, true);
             }}
         }}
-        
-        async function loadStatus() {{
+
+        async function updateServer(serverId) {{
+            if (!confirm('Server jetzt updaten?\\n\\nHinweis: Bei laufendem Server wird er für das Update kurz gestoppt.')) return;
+
             try {{
-                const res = await fetch('/api/status');
+                const res = await fetch('/api/server/' + serverId + '/update', {{method: 'POST'}});
                 const data = await res.json();
-                if (res.ok && !data.error) {{
-                    document.getElementById('cpu').textContent = data.cpu + '%';
-                    document.getElementById('ram').textContent = data.ram + '%';
-                }}
+                handleResponse(data, res);
+                setTimeout(loadServers, 2000);
             }} catch (e) {{
-                console.error('Status-Fehler:', e);
+                showNotification('Netzwerkfehler: ' + e.message, true);
             }}
         }}
         
@@ -12274,13 +13883,39 @@ def get_web_template(config_manager):
         }});
         
         loadServers();
-        loadStatus();
-        setInterval(loadServers, 5000);
-        setInterval(loadStatus, 2000);
+        loadServiceStatus();
+        setInterval(loadServiceStatus, 5000);
     </script>
 </body>
 </html>
 '''
+
+
+def _load_external_template(filename, fallback_html):
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(base_dir, 'templates', filename)
+        if os.path.exists(template_path):
+            with open(template_path, 'r', encoding='utf-8') as f:
+                return f.read()
+    except:
+        pass
+    return fallback_html
+
+
+def get_chat_disabled_template(config_manager):
+    fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#101826;color:#e5e7eb;padding:30px;"><h2>Chat/Stream ist deaktiviert</h2><p>Bitte im Desktop-Tool unter Tools -> Chat & Stream aktivieren.</p><p><a href="/" style="color:#5fb0ff;">Zurück</a></p></body></html>'
+    return _load_external_template('chat_disabled.html', fallback)
+
+
+def get_chat_forbidden_template(config_manager):
+    fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#101826;color:#e5e7eb;padding:30px;"><h2>Zugriff nur via Tailscale</h2><p>Diese Seite ist nur aus dem Tailscale-Netz erreichbar.</p></body></html>'
+    return _load_external_template('chat_forbidden.html', fallback)
+
+
+def get_chat_template(config_manager):
+    fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#101826;color:#e5e7eb;padding:30px;"><h2>Chat Template fehlt</h2><p>Datei templates/chat_stream.html wurde nicht gefunden.</p></body></html>'
+    return _load_external_template('chat_stream.html', fallback)
 
 
 # ==================== MAIN ====================
