@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chat & Stream</title>
+    <style>
+        :root {
+            --bg-main: #0b1220;
+            --bg-panel: #141b2d;
+            --bg-soft: #1b253a;
+            --line: #2a3857;
+            --text: #e6edf7;
+            --muted: #9fb0cc;
+            --accent: #5fb0ff;
+            --good: #22c55e;
+            --bad: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; height: 100vh; overflow: hidden; font-family: "Segoe UI", sans-serif; background: radial-gradient(1200px 600px at 80% -10%, #203359 0%, var(--bg-main) 60%); color: var(--text); }
+        .app { height: 100vh; display: grid; grid-template-columns: 280px 1fr; }
+        .sidebar { border-right: 1px solid var(--line); padding: 14px; background: rgba(10, 16, 30, 0.7); display: flex; flex-direction: column; min-height: 0; }
+        .dashboard-btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-soft); color: var(--accent); text-decoration: none; }
+        .dashboard-btn:hover { border-color: var(--accent); }
+        .room-title { font-size: 20px; margin: 0 0 12px 0; color: var(--accent); }
+        .contact { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+        .contact small { display: block; }
+        #me-id { display: none; }
+        #partner-state { display: none; }
+        .avatar { width: 34px; height: 34px; border-radius: 50%; background: #263659; display: grid; place-items: center; font-weight: 700; }
+        .name-line { display: flex; align-items: flex-start; gap: 6px; }
+        .voice-in-chat { color: var(--good); }
+        .mic-off-icon { color: #ff7b7b; font-size: 12px; display: inline-block; position: relative; top: -16px; line-height: 1; }
+        .main { padding: 14px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; min-height: 0; overflow: hidden; }
+        .topbar { display: grid; gap: 8px; }
+        .status { font-size: 14px; color: var(--muted); }
+        .status-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .status-pill { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted); padding: 4px 10px; }
+        .voice-settings { background: transparent; border: none; border-radius: 0; padding: 0; display: grid; grid-template-columns: repeat(1, minmax(180px, 1fr)); gap: 10px; }
+        .voice-item { font-size: 12px; color: var(--muted); display: grid; gap: 6px; }
+        .voice-item input[type="range"] { width: 100%; }
+        .voice-item input[type="text"] { width: 100%; background: #0f1628; color: var(--text); border: 1px solid var(--line); border-radius: 6px; height: 30px; padding: 0 8px; }
+        .voice-item select { width: 100%; background: #0f1628; color: var(--text); border: 1px solid var(--line); border-radius: 6px; height: 30px; }
+        .ampel { display: inline-flex; align-items: center; gap: 8px; }
+        .ampel-dot { width: 10px; height: 10px; border-radius: 50%; background: #374151; }
+        .ampel-dot.on-red { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.7); }
+        .ampel-dot.on-yellow { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.7); }
+        .ampel-dot.on-green { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.7); }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; overflow: visible; align-items: center; position: relative; }
+        .actions button, .actions select { flex: 0 0 auto; white-space: nowrap; }
+        button { background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-radius: 8px; height: 34px; padding: 0 12px; cursor: pointer; }
+        button:hover { border-color: var(--accent); }
+        .actions select { background: var(--bg-soft); color: var(--text); border: 1px solid var(--line); border-radius: 8px; height: 34px; padding: 0 8px; }
+        button.primary { background: #1f355c; border-color: #35568e; }
+        .menu { position: relative; }
+        .menu-toggle { background: #1f355c; border-color: #35568e; display: inline-flex; align-items: center; gap: 8px; }
+        .menu-icon { font-size: 12px; width: 18px; height: 18px; border-radius: 999px; display: inline-grid; place-items: center; background: rgba(255,255,255,0.1); transition: transform 180ms ease, background 180ms ease; }
+        .menu-panel { position: absolute; top: 40px; left: 0; min-width: 230px; background: #101a2e; border: 1px solid var(--line); border-radius: 10px; padding: 8px; z-index: 120; box-shadow: 0 12px 24px rgba(0,0,0,0.35); opacity: 0; transform: translateY(-6px) scale(0.98); pointer-events: none; transition: opacity 140ms ease, transform 140ms ease; }
+        .menu.open .menu-panel { display: grid; gap: 6px; opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        .menu.open .menu-toggle { border-color: var(--accent); }
+        .menu.open .menu-icon { transform: rotate(18deg) scale(1.08); background: rgba(95,176,255,0.28); }
+        .menu-panel button { width: 100%; text-align: left; }
+        #menu-settings .menu-panel { min-width: 320px; }
+        .subpanel-toggle { background: #182742; border-color: #27416b; }
+        .subpanel-toggle.open { border-color: var(--accent); }
+        .mic-settings-wrap { position: static; }
+        .subpanel { display: none; position: absolute; top: 0; left: calc(100% + 8px); width: 360px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #0e182c; box-shadow: 0 12px 24px rgba(0,0,0,0.35); z-index: 130; }
+        .subpanel.open { display: grid; gap: 8px; }
+        .topbar { position: relative; z-index: 40; }
+        .streams { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; height: 100%; align-items: stretch; overflow: hidden; }
+        .stream-card { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; min-height: 0; height: 100%; }
+        .stream-head { padding: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+        .stream-title { display: flex; align-items: center; gap: 8px; }
+        .live-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.85); }
+        .video-wrap { background: #04070e; display: grid; place-items: center; min-height: 0; }
+        video { width: 100%; height: 100%; min-width: 0; min-height: 0; display: block; object-fit: contain; background: #000; }
+        .self-level-meter { width: 100%; height: 10px; border-radius: 999px; background: rgba(15,22,40,0.9); border: 1px solid var(--line); overflow: hidden; position: relative; }
+        .self-level-marker { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.8); left: 8%; z-index: 2; }
+        .self-level-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0%; background: linear-gradient(90deg, #22c55e, #84cc16, #f59e0b); transition: width 80ms linear; }
+        .stream-controls { padding: 10px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: space-between; }
+        .chat { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: 1fr auto; min-height: 200px; }
+        #chat-log { padding: 10px; max-height: 260px; overflow-y: auto; font-size: 14px; }
+        .msg { margin-bottom: 8px; }
+        .msg .meta { color: var(--muted); font-size: 12px; }
+        .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+        #message-input { background: #0f1628; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 0 10px; height: 36px; }
+        .ok { color: var(--good); }
+        .bad { color: var(--bad); }
+        .hidden { display: none !important; }
+        .zoomed { min-height: 0; height: 100%; }
+        .zoom-right { grid-column: 1; width: calc(200% + 12px); }
+        .zoom-left { grid-column: 2; width: calc(200% + 12px); margin-left: calc(-100% - 12px); }
+        .source-switch-btn { height: 30px; padding: 0 10px; font-size: 12px; background: #1b2d4d; border-color: #335585; }
+        .sidebar-chat { margin-top: 12px; flex: 1; min-height: 0; height: auto; }
+        .sidebar-chat #chat-log { max-height: none; }
+        .sidebar-chat .chat-input { grid-template-columns: 1fr; }
+        @media (max-width: 980px) {
+            .app { grid-template-columns: 1fr; }
+            .sidebar { border-right: none; border-bottom: 1px solid var(--line); }
+            .streams { grid-template-columns: 1fr; }
+            .stream-card { height: auto; min-height: 360px; }
+            .sidebar-chat { min-height: 220px; }
+            .subpanel { left: 0; top: calc(100% + 8px); width: min(92vw, 360px); }
+            .zoom-left, .zoom-right { grid-column: auto; width: 100%; margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <h2 class="room-title">💬 <span id="room-title-label">Private Room</span></h2>
+            <div style="margin:8px 0 12px 0;"><a class="dashboard-btn" href="/">← Dashboard</a></div>
+            <div class="contact"><div class="avatar">DU</div><div><div class="name-line"><span id="self-name-label">Du</span><span id="self-mic-icon" class="mic-off-icon hidden">🎤̶</span></div><small class="status" id="me-id"></small><small class="status" id="self-voice-badge">Voice: aus</small></div></div>
+            <div class="contact"><div class="avatar">P</div><div><div class="name-line"><span id="partner-name-label">Partner</span><span id="partner-mic-icon" class="mic-off-icon hidden">🎤̶</span></div><small class="status" id="partner-state">wartet...</small><small class="status" id="partner-voice-badge">Voice: aus</small></div></div>
+            <section class="chat sidebar-chat">
+                <div id="chat-log"></div>
+                <div class="chat-input">
+                    <input id="message-input" type="text" placeholder="Nachricht schreiben...">
+                    <button id="btn-send">Senden</button>
+                </div>
+            </section>
+        </aside>
+        <main class="main">
+            <div class="topbar">
+                <div class="actions">
+                    <div class="menu" id="menu-stream">
+                        <button id="btn-menu-stream" class="menu-toggle"><span class="menu-icon">S</span><span>Stream</span></button>
+                        <div class="menu-panel">
+                            <button id="btn-share-picker">Bildschirm/Fenster teilen</button>
+                            <button id="btn-share-screen">Nur Bildschirm teilen</button>
+                            <button id="btn-share-window">Spiel/Fenster teilen</button>
+                        </div>
+                    </div>
+                    <div class="menu" id="menu-voice">
+                        <button id="btn-menu-voice" class="menu-toggle"><span class="menu-icon">V</span><span>Voice Chat</span></button>
+                        <div class="menu-panel">
+                            <button id="btn-voice-join">Voice beitreten</button>
+                            <button id="btn-mic-toggle">Mic stumm</button>
+                            <button id="btn-voice-leave">Voice verlassen</button>
+                        </div>
+                    </div>
+                    <div class="menu" id="menu-settings">
+                        <button id="btn-menu-settings" class="menu-toggle"><span class="menu-icon">E</span><span>Einstellungen</span></button>
+                        <div id="voice-settings-panel" class="menu-panel">
+                            <div class="voice-settings">
+                                <label class="voice-item">Mikrofon
+                                    <select id="mic-device-select"></select>
+                                    <button id="btn-refresh-mics" type="button">Mikrofone neu laden</button>
+                                </label>
+                                <label class="voice-item">Dein Name
+                                    <input id="self-display-name" type="text" maxlength="24" placeholder="z.B. DatPixxel">
+                                </label>
+                                <label class="voice-item">Partner Name
+                                    <input id="partner-display-name" type="text" maxlength="24" placeholder="z.B. HawkEye">
+                                </label>
+                                <label class="voice-item">Raumname
+                                    <input id="room-title-input" type="text" maxlength="40" placeholder="z.B. Private Room">
+                                </label>
+                                <button id="btn-swap-names" type="button">Namen tauschen</button>
+                                <label class="voice-item">Stream Qualität
+                                    <select id="stream-quality" title="Stream Qualität">
+                                        <option value="low">Low (540p30)</option>
+                                        <option value="medium" selected>Medium (720p30)</option>
+                                        <option value="high">High (1080p60)</option>
+                                    </select>
+                                </label>
+                                <label class="voice-item">Mic Lautstärke: <span id="mic-gain-label">100%</span>
+                                    <input id="mic-gain" type="range" min="0" max="200" step="1" value="100">
+                                </label>
+                                <div class="mic-settings-wrap">
+                                    <button id="btn-mic-settings" class="subpanel-toggle" type="button">Mic Settings</button>
+                                    <div id="mic-settings-subpanel" class="subpanel">
+                                        <label class="voice-item">Noise Gate Preset
+                                            <select id="gate-preset">
+                                                <option value="voice_soft">Voice Soft</option>
+                                                <option value="voice_strict" selected>Voice Strict</option>
+                                                <option value="hard_gate">Hard Gate</option>
+                                                <option value="custom">Custom</option>
+                                            </select>
+                                        </label>
+                                        <label class="voice-item"><span><input id="set-gate" type="checkbox" checked> Noise Gate aktiv</span></label>
+                                        <label class="voice-item">Threshold: <span id="gate-threshold-label">-34 dB</span>
+                                            <input id="gate-threshold" type="range" min="-60" max="-10" step="1" value="-34">
+                                        </label>
+                                        <label class="voice-item">Attack: <span id="gate-attack-label">7 ms</span>
+                                            <input id="gate-attack" type="range" min="1" max="50" step="1" value="7">
+                                        </label>
+                                        <label class="voice-item">Hold: <span id="gate-hold-label">120 ms</span>
+                                            <input id="gate-hold" type="range" min="20" max="300" step="5" value="120">
+                                        </label>
+                                        <label class="voice-item">Release: <span id="gate-release-label">170 ms</span>
+                                            <input id="gate-release" type="range" min="50" max="500" step="10" value="170">
+                                        </label>
+                                        <label class="voice-item">Range: <span id="gate-range-label">-30 dB</span>
+                                            <input id="gate-range" type="range" min="-60" max="0" step="1" value="-30">
+                                        </label>
+                                        <div class="voice-item">Voice Pegel (mit Noise Gate)
+                                            <div class="self-level-meter"><div id="self-level-marker" class="self-level-marker"></div><div id="self-level-fill" class="self-level-fill"></div></div>
+                                        </div>
+                                        <label class="voice-item"><span><input id="set-noise" type="checkbox" checked> Rauschunterdrückung</span></label>
+                                        <label class="voice-item"><span><input id="set-echo" type="checkbox" checked> Echo-Unterdrückung</span></label>
+                                        <label class="voice-item"><span><input id="set-agc" type="checkbox" checked> Auto Gain Control</span></label>
+                                        <label class="voice-item"><span><input id="set-speech-focus" type="checkbox" checked> Sprachfokus (Tastatur/Klicks reduzieren)</span></label>
+                                    </div>
+                                </div>
+                                <div class="voice-item">
+                                    <button id="btn-mic-test" type="button">Mikrofon-Test starten</button>
+                                    <label><input id="mic-test-save-mp3" type="checkbox" checked> Beim Stop als MP3 speichern</label>
+                                    <label><input id="mic-test-loopback" type="checkbox"> Loopback hören</label>
+                                    <div class="ampel"><span id="ampel-red" class="ampel-dot"></span><span id="ampel-yellow" class="ampel-dot"></span><span id="ampel-green" class="ampel-dot"></span><span id="mic-test-status">Mic-Test: aus</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="btn-open-ts">TeamSpeak öffnen</button>
+                </div>
+                <div class="status-row">
+                    <div class="status" id="connection-state">Verbinde...</div>
+                    <span class="status-pill" id="voice-state">Voice: offline</span>
+                    <span class="status-pill" id="mic-state">Mic: aus</span>
+                    <span class="status-pill" id="partner-voice-state">Partner Voice: offline</span>
+                </div>
+            </div>
+            <section class="streams" id="streams-area">
+                <article class="stream-card" id="local-card">
+                    <div class="stream-head"><div class="stream-title"><strong>Dein Stream</strong><span id="local-live-dot" class="live-dot hidden"></span></div><div class="stream-title"><button id="btn-source-live" class="source-switch-btn hidden">Quelle wechseln</button><button id="btn-stop-share-local" class="hidden">Stream beenden</button><span id="local-state" class="status">offline</span></div></div>
+                    <div class="video-wrap"><video id="local-video" autoplay muted playsinline></video></div>
+                    <div class="stream-controls"><span class="status">Quelle lokal wählen</span><div class="stream-title"><button data-expand="local-card">Größer</button><button id="btn-fullscreen-local">Vollbild</button></div></div>
+                </article>
+                <article class="stream-card" id="remote-card">
+                    <div class="stream-head"><strong>Partner Stream</strong><span id="remote-state" class="status">wartet</span></div>
+                    <div class="video-wrap"><video id="remote-video" autoplay playsinline></video></div>
+                    <div class="stream-controls"><span class="status">Parallel möglich</span><div class="stream-title"><button data-expand="remote-card">Größer</button><button id="btn-fullscreen-remote">Vollbild</button></div></div>
+                </article>
+            </section>
+
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <script src="/static/chat_stream.js?v=20260223-50"></script>
+</body>
+</html>

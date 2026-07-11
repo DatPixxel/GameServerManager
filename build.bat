@@ -32,7 +32,22 @@ if exist *.spec del /q *.spec
 
 REM Build
 echo [4/4] Erstelle EXE...
-pyinstaller --name=GameServerManager --onefile --windowed --collect-all customtkinter --collect-all flask --noconfirm game_server_manager.py
+pyinstaller ^
+    --name=GameServerManager ^
+    --onefile ^
+    --windowed ^
+    --add-data "core;core" ^
+    --add-data "web;web" ^
+    --add-data "utils;utils" ^
+    --add-data "templates;templates" ^
+    --add-data "static;static" ^
+    --hidden-import=core.constants ^
+    --hidden-import=core.config_manager ^
+    --hidden-import=core.server_instance ^
+    --collect-all customtkinter ^
+    --collect-all flask ^
+    --noconfirm ^
+    game_server_manager.py
 
 if errorlevel 1 (
     echo.

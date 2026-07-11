@@ -7,10 +7,52 @@ import os
 import subprocess
 import threading
 import time
+import json
 import psutil
 import zipfile
 import shutil
+import glob
 from datetime import datetime, timedelta
+
+try:
+    from security_utils import safe_extract as _safe_extract
+except Exception:
+    _safe_extract = None
+
+
+PATHS = globals().get("PATHS", {})
+SUPPORTED_GAMES = globals().get("SUPPORTED_GAMES", {})
+
+
+def validate_backup_path(backups_root, server_id, backup_path):
+    """Validiert, dass Backup-Pfade im erlaubten Server-Ordner liegen."""
+    try:
+        base = os.path.realpath(os.path.join(backups_root, server_id))
+        target = os.path.realpath(backup_path)
+        if target.startswith(base + os.sep) or target == base:
+            return True, ""
+        return False, "Backup-Pfad liegt ausserhalb des Server-Backup-Ordners"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def safe_extract_zip(zip_path, dest_dir):
+    """Entpackt ZIP-Dateien sicher (Path Traversal Schutz)."""
+    try:
+        if _safe_extract is not None:
+            _safe_extract(zip_path, dest_dir)
+            return True, ""
+
+        dest_real = os.path.realpath(dest_dir)
+        with zipfile.ZipFile(zip_path, "r") as zipf:
+            for member in zipf.namelist():
+                target_path = os.path.realpath(os.path.join(dest_dir, member))
+                if not (target_path == dest_real or target_path.startswith(dest_real + os.sep)):
+                    return False, f"Unsicherer ZIP-Eintrag erkannt: {member}"
+            zipf.extractall(dest_dir)
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
 
 class ServerInstance:
     """Repräsentiert einen einzelnen Game-Server"""

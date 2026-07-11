@@ -11,7 +11,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Importiere und starte Haupt-App
-from game_server_manager import main
+from game_server_manager import GameServerManagerApp
+
+
+def main():
+    app = GameServerManagerApp()
+    app.mainloop()
+
 
 if __name__ == "__main__":
     main()

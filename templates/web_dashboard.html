@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - Web</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #333; margin-bottom: 30px; }
+        header h1 { color: #00d4ff; font-size: 1.8em; }
+        .logout { color: #888; text-decoration: none; padding: 8px 16px; }
+        .logout:hover { color: #fff; }
+        .breadcrumb { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: #888; }
+        .breadcrumb a { color: #00d4ff; text-decoration: none; cursor: pointer; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-box { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-value { font-size: 2em; color: #00d4ff; font-weight: bold; }
+        .stat-label { color: #888; margin-top: 5px; font-size: 0.9em; }
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .game-card { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 25px; border: 2px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.3s ease; }
+        .game-card:hover { border-color: #00d4ff; transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,212,255,0.3); }
+        .game-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .game-icon { font-size: 2.5em; }
+        .game-name { font-size: 1.3em; font-weight: bold; }
+        .game-stats { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .game-stat-item { text-align: center; }
+        .game-stat-value { font-size: 1.5em; font-weight: bold; }
+        .game-stat-value.online { color: #00ff88; }
+        .game-stat-value.offline { color: #ff4444; }
+        .game-stat-label { color: #888; font-size: 0.85em; margin-top: 3px; }
+        .server-list { display: grid; gap: 15px; }
+        .server-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .server-card.online { border-left: 4px solid #00ff88; }
+        .server-card.offline { border-left: 4px solid #ff4444; }
+        .server-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .server-info h3 { font-size: 1.3em; margin-bottom: 5px; }
+        .server-meta { color: #888; font-size: 0.9em; }
+        .status-badge { padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: bold; }
+        .status-badge.online { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .status-badge.offline { background: rgba(255,68,68,0.2); color: #ff4444; }
+        .server-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+        .detail-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+        .detail-label { color: #888; font-size: 0.85em; margin-bottom: 5px; }
+        .detail-value { font-size: 1.1em; font-weight: bold; color: #00d4ff; }
+        .server-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9em; transition: all 0.2s; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn.start { background: #28a745; color: #fff; }
+        .btn.stop { background: #dc3545; color: #fff; }
+        .btn.restart { background: #fd7e14; color: #fff; }
+        .btn.backup { background: #17a2b8; color: #fff; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .empty-state { text-align: center; padding: 80px 20px; color: #888; }
+        .empty-state-icon { font-size: 4em; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ app_name }}</h1>
+            <a href="/logout" class="logout">Logout</a>
+        </header>
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="stats">
+            <div class="stat-box"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Servers</div></div>
+            <div class="stat-box"><div class="stat-value" style="color: #00ff88;" id="stat-online">0</div><div class="stat-label">Online</div></div>
+            <div class="stat-box"><div class="stat-value" style="color: #ff4444;" id="stat-offline">0</div><div class="stat-label">Offline</div></div>
+            <div class="stat-box"><div class="stat-value" id="stat-games">0</div><div class="stat-label">Games</div></div>
+        </div>
+        <div id="dashboard-view" class="view active"><div id="game-grid" class="game-grid"></div></div>
+        <div id="game-detail-view" class="view"><div id="server-list" class="server-list"></div></div>
+    </div>
+    <script src="/static/web_dashboard.js?v=20260212-1"></script>
+</body>
+</html>

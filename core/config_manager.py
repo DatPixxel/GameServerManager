@@ -6,7 +6,53 @@ Verwaltet App-Config und Server-Configs
 import os
 import json
 import hashlib
+import shutil
+import secrets
 from datetime import datetime
+
+
+PATHS = globals().get("PATHS", {})
+TRANSLATIONS = globals().get("TRANSLATIONS", {"de": {}, "en": {}})
+
+PBKDF2_ITERATIONS = 300000
+
+
+def ensure_directories():
+    config_dir = PATHS.get("config")
+    servers_dir = PATHS.get("servers")
+    backups_dir = PATHS.get("backups")
+
+    for path in (config_dir, servers_dir, backups_dir):
+        if path:
+            os.makedirs(path, exist_ok=True)
+
+
+def hash_password(password):
+    salt = secrets.token_bytes(32)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS)
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt.hex()}${dk.hex()}"
+
+
+def verify_password(password, stored_hash):
+    if not stored_hash:
+        return False
+
+    if stored_hash.startswith("pbkdf2_sha256$"):
+        try:
+            _, iterations, salt_hex, hash_hex = stored_hash.split("$")
+            salt = bytes.fromhex(salt_hex)
+            expected_hash = bytes.fromhex(hash_hex)
+            dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations))
+            return secrets.compare_digest(dk, expected_hash)
+        except (ValueError, TypeError):
+            return False
+
+    legacy_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return secrets.compare_digest(legacy_hash, stored_hash)
+
+
+def is_legacy_hash(stored_hash):
+    return bool(stored_hash) and not stored_hash.startswith("pbkdf2_sha256$")
 
 # Password Hashing
 try:

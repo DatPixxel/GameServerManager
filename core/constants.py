@@ -1,15 +1,15 @@
 """
 Konstanten für Game Server Manager Pro
-Enthält SUPPORTED_GAMES und andere globale Definitionen
 """
 
-VERSION = "3.14"
+VERSION = "3.31"
 APP_NAME = "Game Server Manager Pro"
 
 # GitHub für Auto-Updates
 GITHUB_REPO = "DatPixxel/GameServerManager"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
+# Supported Games
 SUPPORTED_GAMES = {
     "ARK: Survival Ascended": {
         "app_id": "2430930",
@@ -291,4 +291,4 @@ SUPPORTED_GAMES = {
         "ds_settings": True  # Braucht DSSettings.txt für Auto-Start
         # Experimenteller Dedicated Server (Early Access seit Januar 2026)
     }
-
+}

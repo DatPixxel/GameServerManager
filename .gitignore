@@ -17,3 +17,16 @@ dist/
 # Optional editor folders
 .vscode/
 .idea/
+
+# Alte Projekt-Kopien / Snapshots (kein Quellcode)
+001_Refactoring/
+002_Refactoring/
+
+# Runtime-Server-Backups (gehören nicht ins Repo)
+Backups Server/
+
+# Interne Aufräum-Notizen
+_cleanup_lists/
+
+# Build-Log
+build_log.txt
