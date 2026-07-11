@@ -72,7 +72,7 @@ except ImportError:
     WINREG_AVAILABLE = False
 
 # ==================== KONSTANTEN ====================
-VERSION = "3.36"
+VERSION = "3.37"
 APP_NAME = "Game Server Manager Pro"
 
 # GitHub für Auto-Updates
@@ -947,7 +947,7 @@ SUPPORTED_GAMES = {
     "RuneScape: Dragonwilds": {
         "app_id": "4019830",  # Eigene Dedicated-Server-App (nicht die Spiel-App)
         "exe_path": "RSDragonwilds/Binaries/Win64/RSDragonwildsServer-Win64-Shipping.exe",  # NICHT der Stub RSDragonwilds.exe im Wurzelordner!
-        "default_params": "-log -port=7777",
+        "default_params": "-log",  # Port wird aus der Server-Config injiziert (siehe build_start_command)
         "default_ports": {"game": 7777, "query": 7778, "game2": 7778},
         "icon": "🐉",
         "config_path": "RSDragonwilds/Saved/Config/WindowsServer",
@@ -2786,7 +2786,16 @@ class ServerInstance:
             ]
             
             return [exe_path] + cmd_args
-        
+
+        # ===== RuneScape: Dragonwilds =====
+        if self.config["game"] == "RuneScape: Dragonwilds":
+            port = self.config.get("port", 7777)
+            # UE-Server: -port (klein) setzt den Game-Port; Sekundär-Port (port+1)
+            # wird automatisch reserviert. So folgt der Server dem im Manager
+            # eingestellten Port statt einem festen Wert.
+            cmd_args = ["-log", f"-port={port}"]
+            return [exe_path] + cmd_args
+
         # Für andere Spiele: Standard-Parameter als Liste
         params = self.config.get("start_params", game_info.get("default_params", ""))
         if params:
