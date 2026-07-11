@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="gameservermanager",
-    version="3.31",
+    version="3.35",
     packages=find_packages(),
     install_requires=[
         'customtkinter>=5.2.0',

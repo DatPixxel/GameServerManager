@@ -72,7 +72,7 @@ except ImportError:
     WINREG_AVAILABLE = False
 
 # ==================== KONSTANTEN ====================
-VERSION = "3.34"
+VERSION = "3.35"
 APP_NAME = "Game Server Manager Pro"
 
 # GitHub für Auto-Updates
