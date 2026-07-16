@@ -17,5 +17,5 @@ setup(
         'argon2-cffi>=21.3.0',
         'bcrypt>=4.0.0',
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.12',
 )

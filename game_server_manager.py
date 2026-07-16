@@ -75,6 +75,10 @@ except ImportError:
 VERSION = "3.37"
 APP_NAME = "Game Server Manager Pro"
 
+# Sensible Felder in Server-Configs (Klartext-Geheimnisse).
+# Werden aus Web-API-Antworten gefiltert und at-rest verschlüsselt gespeichert.
+SENSITIVE_SERVER_KEYS = ("server_password", "admin_password", "rcon_password")
+
 # GitHub für Auto-Updates
 GITHUB_REPO = "DatPixxel/GameServerManager"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
@@ -1426,6 +1430,141 @@ def is_legacy_hash(stored_hash):
         return False
     return not stored_hash.startswith("pbkdf2_sha256$")
 
+
+# ==================== SECRET-VERSCHLÜSSELUNG (at-rest) ====================
+# Server-Geheimnisse (RCON-/Admin-/Server-Passwörter) werden verschlüsselt in
+# servers.json abgelegt. Unter Windows via DPAPI (an das Benutzerkonto gebunden,
+# kein separater Schlüssel nötig). Auf anderen Plattformen bleibt der Wert als
+# Klartext erhalten (dann gibt es keine at-rest-Verschlüsselung).
+SECRET_ENC_PREFIX = "enc:v1:"
+
+# Optionaler Zusatz-Entropie-Kontext für DPAPI (bindet Chiffre an diese App)
+_DPAPI_ENTROPY = b"GameServerManager::servers"
+
+
+def _dpapi_available():
+    return os.name == "nt"
+
+
+def _dpapi_protect(plaintext_bytes):
+    """Verschlüsselt Bytes mit Windows DPAPI (CryptProtectData). Gibt Bytes zurück."""
+    import ctypes
+    from ctypes import wintypes
+
+    class DATA_BLOB(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
+
+    def _to_blob(data):
+        buf = ctypes.create_string_buffer(data, len(data))
+        return DATA_BLOB(len(data), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char))), buf
+
+    in_blob, _in_buf = _to_blob(plaintext_bytes)
+    entropy_blob, _ent_buf = _to_blob(_DPAPI_ENTROPY)
+    out_blob = DATA_BLOB()
+
+    ok = ctypes.windll.crypt32.CryptProtectData(
+        ctypes.byref(in_blob), None, ctypes.byref(entropy_blob),
+        None, None, 0, ctypes.byref(out_blob)
+    )
+    if not ok:
+        raise ctypes.WinError()
+    try:
+        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
+    finally:
+        ctypes.windll.kernel32.LocalFree(out_blob.pbData)
+
+
+def _dpapi_unprotect(cipher_bytes):
+    """Entschlüsselt DPAPI-Bytes (CryptUnprotectData). Gibt Bytes zurück."""
+    import ctypes
+    from ctypes import wintypes
+
+    class DATA_BLOB(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
+
+    def _to_blob(data):
+        buf = ctypes.create_string_buffer(data, len(data))
+        return DATA_BLOB(len(data), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char))), buf
+
+    in_blob, _in_buf = _to_blob(cipher_bytes)
+    entropy_blob, _ent_buf = _to_blob(_DPAPI_ENTROPY)
+    out_blob = DATA_BLOB()
+
+    ok = ctypes.windll.crypt32.CryptUnprotectData(
+        ctypes.byref(in_blob), None, ctypes.byref(entropy_blob),
+        None, None, 0, ctypes.byref(out_blob)
+    )
+    if not ok:
+        raise ctypes.WinError()
+    try:
+        return ctypes.string_at(out_blob.pbData, out_blob.cbData)
+    finally:
+        ctypes.windll.kernel32.LocalFree(out_blob.pbData)
+
+
+def encrypt_secret(value):
+    """
+    Verschlüsselt einen Geheimwert für die Ablage in servers.json.
+    Rückgabe: 'enc:v1:<base64>' unter Windows, sonst der unveränderte Klartext.
+    Bereits verschlüsselte oder leere Werte werden unverändert zurückgegeben.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    if value.startswith(SECRET_ENC_PREFIX):
+        return value
+    if not _dpapi_available():
+        return value  # Kein at-rest-Schutz auf dieser Plattform
+    try:
+        import base64
+        cipher = _dpapi_protect(value.encode("utf-8"))
+        return SECRET_ENC_PREFIX + base64.b64encode(cipher).decode("ascii")
+    except Exception as e:
+        print(f"⚠️ Konnte Geheimnis nicht verschlüsseln (bleibt Klartext): {e}")
+        return value
+
+
+def decrypt_secret(value):
+    """
+    Entschlüsselt einen Wert aus servers.json.
+    Werte ohne 'enc:v1:'-Präfix gelten als Legacy-Klartext und werden unverändert
+    zurückgegeben (werden beim nächsten Speichern automatisch migriert).
+    """
+    if not value or not isinstance(value, str):
+        return value
+    if not value.startswith(SECRET_ENC_PREFIX):
+        return value  # Legacy-Klartext
+    try:
+        import base64
+        cipher = base64.b64decode(value[len(SECRET_ENC_PREFIX):])
+        return _dpapi_unprotect(cipher).decode("utf-8")
+    except Exception as e:
+        print(f"⚠️ Konnte Geheimnis nicht entschlüsseln: {e}")
+        return value
+
+
+def _encrypt_server_secrets(servers):
+    """Gibt eine tiefe Kopie von servers zurück, in der sensible Felder verschlüsselt sind."""
+    import copy
+    result = copy.deepcopy(servers)
+    for server_config in result.values():
+        if not isinstance(server_config, dict):
+            continue
+        for key in SENSITIVE_SERVER_KEYS:
+            if server_config.get(key):
+                server_config[key] = encrypt_secret(server_config[key])
+    return result
+
+
+def _decrypt_server_secrets_inplace(servers):
+    """Entschlüsselt sensible Felder im geladenen servers-Dict (in place)."""
+    for server_config in servers.values():
+        if not isinstance(server_config, dict):
+            continue
+        for key in SENSITIVE_SERVER_KEYS:
+            if server_config.get(key):
+                server_config[key] = decrypt_secret(server_config[key])
+    return servers
+
 # Pfad-Validierung für sichere Dateioperationen
 ALLOWED_CONFIG_EXTENSIONS = {'.ini', '.cfg', '.json', '.yaml', '.yml', '.txt', '.conf'}
 
@@ -2013,7 +2152,9 @@ class ConfigManager:
         if config_file and os.path.exists(config_file):
             try:
                 with open(config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    servers = json.load(f)
+                # Geheimnis-Felder beim Laden entschlüsseln (Klartext bleibt Klartext)
+                return _decrypt_server_secrets_inplace(servers)
             except json.JSONDecodeError as e:
                 print(f"⚠️ WARNUNG: servers.json ist beschädigt (Zeile {e.lineno}): {e.msg}")
                 print(f"   Datei: {config_file}")
@@ -2033,11 +2174,13 @@ class ConfigManager:
             return {}
     
     def save_servers(self):
-        """Speichert die Server-Konfigurationen"""
+        """Speichert die Server-Konfigurationen (Geheimnisse verschlüsselt at-rest)"""
         config_file = PATHS.get("servers_config", "")
         if config_file:
+            # Sensible Felder nur für die Datei verschlüsseln; In-Memory bleibt Klartext
+            servers_to_save = _encrypt_server_secrets(self.servers)
             with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.servers, f, indent=4, ensure_ascii=False)
+                json.dump(servers_to_save, f, indent=4, ensure_ascii=False)
     
     def load_users(self):
         """Lädt die Benutzer-Konfiguration"""
@@ -11944,10 +12087,13 @@ pause
             server_config = config_manager.servers.get(server_id, {})
             instance = app_instance.server_instances.get(server_id)
             game_info = SUPPORTED_GAMES.get(server_config.get('game', ''), {})
-            
+
+            # Klartext-Geheimnisse nicht über die Web-API ausliefern
+            safe_config = {k: v for k, v in server_config.items() if k not in SENSITIVE_SERVER_KEYS}
+
             return jsonify({
                 'id': server_id,
-                'config': server_config,
+                'config': safe_config,
                 'running': instance.is_running() if instance else False,
                 'uptime': instance.get_uptime() if instance else '-',
                 'game_info': {
@@ -12054,7 +12200,8 @@ pause
             enabled = bool(data.get('enabled', True))
             server_config['conan_auto_mod_update'] = enabled
             config_manager.save_servers()
-            return jsonify({'success': True, 'message': f'Conan Auto-Mod-Update {'aktiviert' if enabled else 'deaktiviert'}', 'enabled': enabled})
+            status_text = 'aktiviert' if enabled else 'deaktiviert'
+            return jsonify({'success': True, 'message': f'Conan Auto-Mod-Update {status_text}', 'enabled': enabled})
 
         @flask_app.route('/api/server/<server_id>/conan/mods/upload', methods=['POST'])
         def api_conan_mod_upload(server_id):
