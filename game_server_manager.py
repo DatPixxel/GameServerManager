@@ -30,6 +30,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 import socket
 
 # ==================== MODULARISIERTE BAUSTEINE (gsm-Paket) ====================
+from gsm.paths import PATHS, get_paths, set_base_dir, ensure_directories
 from gsm.games import SUPPORTED_GAMES
 from gsm.i18n import TRANSLATIONS
 
@@ -133,22 +134,7 @@ def save_base_dir(path):
         print(f"❌ Fehler beim Speichern: {e}")
         return False
 
-def get_paths(base_dir):
-    """Gibt alle Pfade basierend auf dem Basis-Verzeichnis zurück"""
-    return {
-        "base": base_dir,
-        "config": os.path.join(base_dir, "config"),
-        "servers": os.path.join(base_dir, "servers"),
-        "backups": os.path.join(base_dir, "backups"),
-        "logs": os.path.join(base_dir, "logs"),
-        "steamcmd": os.path.join(base_dir, "steamcmd"),
-        "app_config": os.path.join(base_dir, "config", "app_config.json"),
-        "servers_config": os.path.join(base_dir, "config", "servers.json"),
-        "users_config": os.path.join(base_dir, "config", "users.json")
-    }
-
-# Globale Pfade (werden beim Start gesetzt)
-PATHS = {}
+# get_paths / PATHS / set_base_dir / ensure_directories liegen jetzt in gsm/paths.py
 
 CONAN_WORKSHOP_APP_ID = "440900"
 CONAN_UPLOAD_MAX_BYTES = 8 * 1024 * 1024 * 1024
@@ -979,15 +965,6 @@ def safe_extract_zip(zip_path, target_dir):
 def generate_session_token():
     """Generiert einen sicheren Session-Token"""
     return secrets.token_hex(32)
-
-def ensure_directories():
-    """Erstellt alle benötigten Verzeichnisse"""
-    global PATHS
-    if PATHS:
-        for key in ["base", "config", "servers", "backups", "logs", "steamcmd"]:
-            if key in PATHS:
-                os.makedirs(PATHS[key], exist_ok=True)
-
 
 # ==================== DISCORD WEBHOOK ====================
 class DiscordNotifier:
@@ -3106,8 +3083,8 @@ Viel Spaß beim Spielen! 🎮
                 self.selected_path = path
                 self.folder_error.configure(text="")
                 
-                # Pfade global setzen
-                PATHS = get_paths(path)
+                # Pfade global setzen (in place, damit alle Module dasselbe Dict sehen)
+                set_base_dir(path)
                 
                 # Config speichern
                 if not save_base_dir(path):
@@ -3504,8 +3481,8 @@ class GameServerManagerApp(ctk.CTk):
         
         if saved_base_dir and os.path.exists(saved_base_dir):
             print(f"✅ Installationsordner gefunden: {saved_base_dir}")
-            # Bereits eingerichtet - Pfade laden
-            PATHS = get_paths(saved_base_dir)
+            # Bereits eingerichtet - Pfade laden (in place)
+            set_base_dir(saved_base_dir)
             self.config_manager = ConfigManager()
             
             # Discord Notifier initialisieren

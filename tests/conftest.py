@@ -23,8 +23,18 @@ def gsm_module():
 
 
 @pytest.fixture
-def temp_paths(tmp_path, monkeypatch):
-    """Setzt PATHS auf ein temporäres Verzeichnis und stellt es danach wieder her."""
-    paths = gsm.get_paths(str(tmp_path))
-    monkeypatch.setattr(gsm, "PATHS", paths, raising=False)
-    return paths
+def temp_paths(tmp_path):
+    """Setzt PATHS in place auf ein temporäres Verzeichnis und stellt es danach wieder her.
+
+    Nutzt bewusst den echten Setter set_base_dir() (in-place-Mutation), damit alle
+    Module dasselbe geteilte Dict sehen – Rebinding via monkeypatch würde die
+    Module-übergreifende Referenz zerreißen.
+    """
+    import copy
+    original = copy.deepcopy(gsm.PATHS)
+    gsm.set_base_dir(str(tmp_path))
+    try:
+        yield gsm.PATHS
+    finally:
+        gsm.PATHS.clear()
+        gsm.PATHS.update(original)
