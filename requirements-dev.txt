@@ -1,0 +1,4 @@
+# Entwicklungs-/Test-Abhängigkeiten
+-r requirements.txt
+
+pytest>=7.4.0
