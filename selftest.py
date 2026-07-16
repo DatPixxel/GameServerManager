@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Kleiner Schnelltest fuer GameServerManager_v3."""
+"""Kleiner Schnelltest fuer GameServerManager_v3.
+
+Prueft die tatsaechlich laufende Anwendung (game_server_manager.py),
+nicht mehr abgekoppelte Parallel-Module.
+"""
 
 from __future__ import annotations
 
@@ -21,11 +25,6 @@ def check(name: str, fn):
         return False
 
 
-def test_core_imports():
-    import core.config_manager  # noqa: F401
-    import core.server_instance  # noqa: F401
-
-
 def test_main_module():
     gsm = importlib.import_module("game_server_manager")
     version = getattr(gsm, "VERSION", "")
@@ -42,26 +41,37 @@ def test_run_entrypoint():
         raise RuntimeError("run.main() fehlt")
 
 
+def test_core_classes_present():
+    gsm = importlib.import_module("game_server_manager")
+    for cls in ("ConfigManager", "ServerInstance", "GameServerManagerApp"):
+        if not hasattr(gsm, cls):
+            raise RuntimeError(f"Klasse {cls} fehlt im Hauptmodul")
+
+
 def test_files_present():
     required = [
         ROOT / "templates" / "web_dashboard.html",
         ROOT / "static" / "web_dashboard.js",
-        ROOT / "security_utils.py",
-        ROOT / "web_security.py",
-        ROOT / "auth_manager.py",
-        ROOT / "security_patches.py",
+        ROOT / "game_server_manager.py",
+        ROOT / "run.py",
     ]
     missing = [str(p.relative_to(ROOT)) for p in required if not p.exists()]
     if missing:
         raise RuntimeError(f"Fehlende Dateien: {', '.join(missing)}")
 
 
-def test_modular_config_manager():
-    from core.config_manager import ConfigManager
-
-    cfg = ConfigManager()
-    if not hasattr(cfg, "app_config"):
-        raise RuntimeError("ConfigManager ohne app_config")
+def test_secret_encryption_roundtrip():
+    gsm = importlib.import_module("game_server_manager")
+    secret = "MyRc0nPäss!"
+    enc = gsm.encrypt_secret(secret)
+    if gsm.decrypt_secret(enc) != secret:
+        raise RuntimeError("Secret-Roundtrip fehlgeschlagen")
+    # Idempotenz: bereits verschluesselte Werte nicht doppelt verschluesseln
+    if gsm.encrypt_secret(enc) != enc:
+        raise RuntimeError("encrypt_secret ist nicht idempotent")
+    # Legacy-Klartext (ohne Praefix) bleibt beim Laden erhalten
+    if gsm.decrypt_secret("klartext") != "klartext":
+        raise RuntimeError("Legacy-Klartext wurde veraendert")
 
 
 def main() -> int:
@@ -70,11 +80,11 @@ def main() -> int:
     print("-" * 56)
 
     tests = [
-        ("Core-Module importieren", test_core_imports),
         ("Hauptmodul laden", test_main_module),
         ("run.py Entrypoint", test_run_entrypoint),
+        ("Kernklassen vorhanden", test_core_classes_present),
         ("Pflichtdateien vorhanden", test_files_present),
-        ("Modularer ConfigManager", test_modular_config_manager),
+        ("Secret-Verschluesselung", test_secret_encryption_roundtrip),
     ]
 
     passed = 0

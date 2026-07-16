@@ -36,14 +36,8 @@ pyinstaller ^
     --name=GameServerManager ^
     --onefile ^
     --windowed ^
-    --add-data "core;core" ^
-    --add-data "web;web" ^
-    --add-data "utils;utils" ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
-    --hidden-import=core.constants ^
-    --hidden-import=core.config_manager ^
-    --hidden-import=core.server_instance ^
     --collect-all customtkinter ^
     --collect-all flask ^
     --noconfirm ^
@@ -62,11 +56,5 @@ echo   BUILD ERFOLGREICH!
 echo   Datei: dist\GameServerManager.exe
 echo ========================================
 echo.
-
-REM Kopiere web_security.py falls vorhanden
-if exist web_security.py (
-    copy web_security.py dist\ >nul
-    echo web_security.py nach dist\ kopiert
-)
 
 pause
