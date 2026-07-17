@@ -3181,7 +3181,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 self.after(0, lambda: self._finish_clone(new_id, new_config))
                 
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror(t("error"), f"{t('clone_failed')}: {str(e)}"))
+                err_msg = str(e)
+                self.after(0, lambda: messagebox.showerror(t("error"), f"{t('clone_failed')}: {err_msg}"))
         
         # In Thread ausführen
         threading.Thread(target=do_clone, daemon=True).start()

@@ -513,7 +513,8 @@ class RconLogMixin:
                         dialog.after(0, lambda: map_status_label.configure(
                             text=f"⚠️ {ARK_MAP_DATA.get(current_map, {}).get('name', '?')} | 📥 = Import"))
                 except Exception as e:
-                    dialog.after(0, lambda: map_status_label.configure(text=f"❌ Fehler: {e}"))
+                    err_msg = str(e)
+                    dialog.after(0, lambda: map_status_label.configure(text=f"❌ Fehler: {err_msg}"))
             
             threading.Thread(target=do_load, daemon=True).start()
         

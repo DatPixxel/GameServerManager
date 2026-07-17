@@ -224,7 +224,8 @@ class InstallUpdateMixin:
                     shutil.rmtree(steamapps_cache)
                     self.after(0, lambda: add_output("✅ Cache gelöscht"))
                 except Exception as e:
-                    self.after(0, lambda: add_output(f"⚠️ Cache-Löschung fehlgeschlagen: {e}"))
+                    err_msg = str(e)
+                    self.after(0, lambda: add_output(f"⚠️ Cache-Löschung fehlgeschlagen: {err_msg}"))
             
             self.after(0, lambda: update_status("📥 Lade Update herunter..."))
             self.after(0, lambda: add_output(f"Starte SteamCMD für App {app_id}..."))
@@ -650,8 +651,9 @@ class InstallUpdateMixin:
                 
                 if callback:
                     self.after(0, callback)
-                
+
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Fehler", str(e)))
+                err_msg = str(e)
+                self.after(0, lambda: messagebox.showerror("Fehler", err_msg))
         
         threading.Thread(target=do_install, daemon=True).start()
