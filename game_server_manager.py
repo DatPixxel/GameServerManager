@@ -270,66 +270,30 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         mid_frame = ctk.CTkFrame(header, fg_color="transparent")
         mid_frame.pack(side="left", padx=30, pady=10)
         
+        # Einheitlicher, neutraler Header-Button-Stil
+        def _header_btn(parent, text, command, primary=False):
+            return ctk.CTkButton(
+                parent, text=text, height=34, font=(th.FONT, 13),
+                fg_color=(th.ACCENT if primary else th.SURFACE_2),
+                hover_color=(th.ACCENT_HOVER if primary else th.HOVER),
+                text_color=("#ffffff" if primary else th.TEXT),
+                border_width=(0 if primary else 1), border_color=th.BORDER,
+                corner_radius=th.RADIUS_XS, command=command
+            )
+
         web_port = self.config_manager.app_config.get("web", {}).get("port", 5001)
-        ctk.CTkButton(
-            mid_frame,
-            text=f"🌐 localhost:{web_port}",
-            font=("Segoe UI", 13),
-            width=140,
-            height=35,
-            fg_color="#161b22",
-            hover_color="#1c222b",
-            command=self.open_web_interface
-        ).pack(side="left", padx=3)
-        
-        self.update_btn = ctk.CTkButton(
-            mid_frame,
-            text="🔄 Update",
-            width=110,
-            height=35,
-            font=("Segoe UI", 13),
-            fg_color="#2d5a3d",
-            hover_color="#3d7a4d",
-            command=self.check_for_updates
-        )
-        self.update_btn.pack(side="left", padx=3)
-        
+        _header_btn(mid_frame, f"🌐  localhost:{web_port}", self.open_web_interface).pack(side="left", padx=4)
+
+        self.update_btn = _header_btn(mid_frame, "🔄  Update", self.check_for_updates)
+        self.update_btn.pack(side="left", padx=4)
+
         # Rechts: Settings, Discord, Cluster
         right_frame = ctk.CTkFrame(header, fg_color="transparent")
         right_frame.pack(side="right", padx=15, pady=10)
-        
-        ctk.CTkButton(
-            right_frame,
-            text="🔗 Cluster",
-            width=110,
-            height=35,
-            font=("Segoe UI", 13),
-            fg_color="#6a3a8a",
-            hover_color="#7a4a9a",
-            command=self.show_cluster_settings
-        ).pack(side="right", padx=3)
-        
-        ctk.CTkButton(
-            right_frame,
-            text="🔔 Discord",
-            width=110,
-            height=35,
-            font=("Segoe UI", 13),
-            fg_color="#5865F2",
-            hover_color="#4752C4",
-            command=self.show_discord_settings
-        ).pack(side="right", padx=3)
-        
-        ctk.CTkButton(
-            right_frame,
-            text="⚙️ Settings",
-            width=110,
-            height=35,
-            font=("Segoe UI", 13),
-            fg_color="#232b36",
-            hover_color="#2f3947",
-            command=self.show_app_settings
-        ).pack(side="right", padx=3)
+
+        _header_btn(right_frame, "🔗  Cluster", self.show_cluster_settings).pack(side="right", padx=4)
+        _header_btn(right_frame, "🔔  Discord", self.show_discord_settings).pack(side="right", padx=4)
+        _header_btn(right_frame, "⚙️  Settings", self.show_app_settings).pack(side="right", padx=4)
         
         # ============ MAIN CONTAINER ============
         main = ctk.CTkFrame(self, fg_color="#0e1116")
@@ -479,18 +443,17 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         for icon, text, nav_id, command in nav_items:
             is_active = self.active_nav == nav_id
             
-            # Button Frame
+            # Nav-Button (aktiv = dezente Akzentfläche, sonst transparent)
             btn = ctk.CTkButton(
                 self.nav_frame,
-                text=f"{icon}  {text}" + (f"  ({server_count})" if nav_id == "servers" else ""),
-                font=("Segoe UI", 13, "bold") if is_active else ("Segoe UI", 13),
+                text=f"{icon}   {text}" + (f"   ({server_count})" if nav_id == "servers" else ""),
+                font=(th.FONT, 13, "bold") if is_active else (th.FONT, 13),
                 height=42,
                 anchor="w",
-                fg_color="#1e3a5f" if is_active else "transparent",
-                hover_color="#1c222b",
-                text_color="#ffffff" if is_active else "#aaaaaa",
-                border_width=2 if is_active else 0,
-                border_color="#4c9aff",
+                fg_color=th.ACCENT_WEAK if is_active else "transparent",
+                hover_color=th.SURFACE_2,
+                text_color=th.TEXT if is_active else th.TEXT_MUTED,
+                corner_radius=th.RADIUS_XS,
                 command=command
             )
             btn.pack(fill="x", pady=2)
@@ -571,11 +534,11 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             row_inner.pack(fill="x", padx=15, pady=12)
             
             # Status Indicator
-            status_color = "#3fb771" if is_running else "#ff4444"
+            status_color = th.OK if is_running else th.CRIT
             ctk.CTkLabel(
                 row_inner,
                 text="●",
-                font=("Segoe UI", 20),
+                font=(th.FONT, 18),
                 text_color=status_color,
                 width=30
             ).pack(side="left")
@@ -624,23 +587,24 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             if is_running:
                 ctk.CTkButton(
                     btn_frame,
-                    text="⏹ Stop",
-                    width=80,
+                    text="⏹  Stop",
+                    width=88,
                     height=32,
-                    font=("Segoe UI", 12),
-                    fg_color="#aa3333",
-                    hover_color="#cc4444",
+                    font=(th.FONT, 12, "bold"),
+                    fg_color="transparent", border_width=1, border_color=th.BORDER,
+                    text_color=th.TEXT_MUTED, hover_color=th.CRIT_BG,
+                    corner_radius=th.RADIUS_XS,
                     command=lambda sid=server_id: self.quick_stop_server(sid)
                 ).pack(side="left", padx=3)
             else:
                 ctk.CTkButton(
                     btn_frame,
-                    text="▶ Start",
-                    width=80,
+                    text="▶  Start",
+                    width=88,
                     height=32,
-                    font=("Segoe UI", 12),
-                    fg_color="#2d5a2d",
-                    hover_color="#3d7a3d",
+                    font=(th.FONT, 12, "bold"),
+                    fg_color=th.ACCENT, hover_color=th.ACCENT_HOVER, text_color="#ffffff",
+                    corner_radius=th.RADIUS_XS,
                     command=lambda sid=server_id: self.quick_start_server(sid)
                 ).pack(side="left", padx=3)
     
@@ -1213,74 +1177,41 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             self.show_no_servers_message()
             return
         
-        # Dashboard Header - kompakt
-        header_frame = ctk.CTkFrame(self.content_area, fg_color="#0e1116", height=45)
-        header_frame.pack(fill="x")
-        header_frame.pack_propagate(False)
-        
-        # Left: Title
-        ctk.CTkLabel(
-            header_frame,
-            text="📊 Dashboard",
-            font=("Segoe UI", 16, "bold"),
-            text_color="#4c9aff"
-        ).pack(side="left", padx=15, pady=10)
-        
-        # Refresh Button (klein)
-        ctk.CTkButton(
-            header_frame,
-            text="🔄",
-            width=28,
-            height=28,
-            font=("Segoe UI", 11),
-            fg_color="#2a323d",
-            hover_color="#232b36",
-            command=self.show_dashboard
-        ).pack(side="left", padx=3, pady=8)
-        
-        # Live Badge
-        live_badge = ctk.CTkFrame(header_frame, fg_color="#1a3a1a", corner_radius=10)
-        live_badge.pack(side="left", padx=5, pady=10)
-        ctk.CTkLabel(
-            live_badge,
-            text="● LIVE",
-            font=("Segoe UI", 12),
-            text_color="#3fb771",
-            padx=8,
-            pady=2
-        ).pack()
-        
-        # Server Stats (rechts)
+        # Server-Zahlen
         total_servers = len(self.config_manager.servers)
-        running_servers = sum(1 for sid in self.config_manager.servers 
+        running_servers = sum(1 for sid in self.config_manager.servers
                             if self.server_instances.get(sid) and self.server_instances[sid].is_running())
-        
-        stats_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        stats_frame.pack(side="right", padx=15)
-        
-        # Online Badge
-        online_badge = ctk.CTkFrame(stats_frame, fg_color="#1a3a1a", corner_radius=8)
-        online_badge.pack(side="left", padx=3)
+
+        # Dashboard-Kopf: Titel + Untertitel links, Status-Pills rechts
+        header_frame = ctk.CTkFrame(self.content_area, fg_color=th.GROUND, height=58)
+        header_frame.pack(fill="x", padx=18, pady=(14, 0))
+        header_frame.pack_propagate(False)
+
+        title_box = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_box.pack(side="left")
         ctk.CTkLabel(
-            online_badge,
-            text=f"🟢 {running_servers}",
-            font=("Segoe UI", 12),
-            text_color="#3fb771",
-            padx=8,
-            pady=3
-        ).pack()
-        
-        # Total Badge
-        total_badge = ctk.CTkFrame(stats_frame, fg_color="#2a323d", corner_radius=8)
-        total_badge.pack(side="left", padx=3)
+            title_box, text="Dashboard", font=(th.FONT, 20, "bold"),
+            text_color=th.TEXT, anchor="w"
+        ).pack(anchor="w")
         ctk.CTkLabel(
-            total_badge,
-            text=f"📦 {total_servers}",
-            font=("Segoe UI", 12),
-            text_color="#888888",
-            padx=8,
-            pady=3
-        ).pack()
+            title_box, text=f"{running_servers} von {total_servers} Servern online",
+            font=(th.FONT, 12), text_color=th.TEXT_FAINT, anchor="w"
+        ).pack(anchor="w")
+
+        pills = ctk.CTkFrame(header_frame, fg_color="transparent")
+        pills.pack(side="right")
+
+        ctk.CTkButton(
+            pills, text="🔄  Aktualisieren", height=32, font=(th.FONT, 12),
+            fg_color=th.SURFACE_2, hover_color=th.HOVER, text_color=th.TEXT,
+            border_width=1, border_color=th.BORDER, corner_radius=th.RADIUS_XS,
+            command=self.show_dashboard
+        ).pack(side="right", padx=(8, 0))
+
+        ctk.CTkLabel(
+            pills, text=f"  ● {running_servers} online  ", font=(th.FONT, 12, "bold"),
+            text_color=th.OK, fg_color=th.OK_BG, corner_radius=11, height=26
+        ).pack(side="right", padx=4)
         
         # Scrollable Grid Container
         scroll = ctk.CTkScrollableFrame(self.content_area, fg_color="transparent")
