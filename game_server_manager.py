@@ -729,7 +729,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # Tool Cards
         tools = [
             ("🔄", "Auto-Updates", "SteamCMD Updates für alle Server", self.check_for_updates),
-            ("💾", "Backup Manager", "Backups erstellen und verwalten", self.show_backup_manager),
+            ("💾", "Backup Manager", "Backups erstellen und verwalten", self.open_backup_manager_tool),
             ("📊", "System Monitor", "CPU/RAM Übersicht", self.show_system_monitor),
             ("🌐", "Web Interface", "Browser-Zugriff öffnen", self.open_web_interface),
             ("💬", "Chat & Stream", "Textchat + Screen/Game Stream verwalten", self.show_chat_stream_manager),

@@ -9,9 +9,57 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox
 
+from gsm.games import SUPPORTED_GAMES
+
 
 class BackupsMixin:
     """Backup-Verwaltung (Mixin fuer GameServerManagerApp)."""
+
+    def open_backup_manager_tool(self):
+        """Globaler Backup-Manager (Tools-Menue): Server waehlen, dann Dialog oeffnen."""
+        t = self.config_manager.get_text
+        servers = self.config_manager.servers
+        if not servers:
+            messagebox.showinfo(t("info"), t("no_servers"))
+            return
+        # Genau ein Server -> direkt oeffnen
+        if len(servers) == 1:
+            self.show_backup_manager(next(iter(servers)))
+            return
+
+        # Mehrere Server -> Auswahldialog
+        dialog = ctk.CTkToplevel(self)
+        dialog.title(f"💾 {t('backup_manager')}")
+        dialog.geometry("420x480")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 420) // 2
+        y = (dialog.winfo_screenheight() - 480) // 2
+        dialog.geometry(f"420x480+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text=f"💾 {t('backup_manager')}", font=("Arial", 18, "bold")).pack(pady=(20, 5))
+        ctk.CTkLabel(dialog, text="Server auswählen:", font=("Arial", 12), text_color="#888888").pack(pady=(0, 10))
+
+        scroll = ctk.CTkScrollableFrame(dialog, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        def _choose(server_id):
+            dialog.destroy()
+            self.show_backup_manager(server_id)
+
+        for server_id, cfg in servers.items():
+            icon = SUPPORTED_GAMES.get(cfg.get("game", ""), {}).get("icon", "🎮")
+            name = cfg.get("name", server_id)
+            ctk.CTkButton(
+                scroll,
+                text=f"{icon}  {name}",
+                anchor="w",
+                height=40,
+                fg_color="#1e1e2e",
+                hover_color="#2a2a3a",
+                command=lambda sid=server_id: _choose(sid),
+            ).pack(fill="x", pady=4)
 
     def backup_server(self, server_id):
         """Öffnet den Backup-Manager für einen Server"""
