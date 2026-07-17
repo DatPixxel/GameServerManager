@@ -116,9 +116,9 @@ class RconLogMixin:
         map_header.pack(fill="x", padx=5, pady=5)
         
         ctk.CTkLabel(map_header, text=f"🗺️ {ARK_MAP_DATA.get(current_map, {}).get('name', current_map)}",
-            font=("Arial", 16, "bold")).pack(side="left", padx=10, pady=5)
+            font=("Segoe UI", 16, "bold")).pack(side="left", padx=10, pady=5)
         
-        map_status_label = ctk.CTkLabel(map_header, text="", font=("Arial", 11))
+        map_status_label = ctk.CTkLabel(map_header, text="", font=("Segoe UI", 11))
         map_status_label.pack(side="right", padx=10)
         
         # Filter
@@ -215,10 +215,10 @@ class RconLogMixin:
         rcon_frame = ctk.CTkFrame(right_frame)
         rcon_frame.pack(fill="x", padx=5, pady=5)
         
-        ctk.CTkLabel(rcon_frame, text="📡 RCON Verbindung", font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(rcon_frame, text="📡 RCON Verbindung", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=10, pady=5)
         
         rcon_status = ctk.CTkLabel(rcon_frame, text="⚠️ RCON muss in GameUserSettings.ini aktiviert sein!",
-            text_color="orange", font=("Arial", 12))
+            text_color="orange", font=("Segoe UI", 12))
         rcon_status.pack(anchor="w", padx=10)
         
         # Port
@@ -296,7 +296,7 @@ class RconLogMixin:
         players_frame = ctk.CTkFrame(right_frame)
         players_frame.pack(fill="x", padx=5, pady=5)
         
-        ctk.CTkLabel(players_frame, text="👥 Online Spieler", font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(players_frame, text="👥 Online Spieler", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=10, pady=5)
         
         player_list_frame = ctk.CTkScrollableFrame(players_frame, height=150)
         player_list_frame.pack(fill="x", padx=5, pady=5)
@@ -310,7 +310,7 @@ class RconLogMixin:
                     name = player.get("name", "?")
                     pf = ctk.CTkFrame(player_list_frame, fg_color="#2a2a4a")
                     pf.pack(fill="x", pady=2)
-                    ctk.CTkLabel(pf, text=f"🟢 {name}", font=("Arial", 11)).pack(side="left", padx=10, pady=5)
+                    ctk.CTkLabel(pf, text=f"🟢 {name}", font=("Segoe UI", 11)).pack(side="left", padx=10, pady=5)
             else:
                 ctk.CTkLabel(player_list_frame, text="Keine Spieler online", text_color="gray").pack(pady=10)
         
@@ -320,7 +320,7 @@ class RconLogMixin:
         actions_frame = ctk.CTkFrame(right_frame)
         actions_frame.pack(fill="x", padx=5, pady=5)
         
-        ctk.CTkLabel(actions_frame, text="⚡ Quick Actions", font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(actions_frame, text="⚡ Quick Actions", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=10, pady=5)
         
         actions_grid = ctk.CTkFrame(actions_frame, fg_color="transparent")
         actions_grid.pack(fill="x", padx=10, pady=5)
@@ -361,7 +361,7 @@ class RconLogMixin:
         console_frame = ctk.CTkFrame(right_frame)
         console_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
-        ctk.CTkLabel(console_frame, text="💻 RCON Konsole", font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=5)
+        ctk.CTkLabel(console_frame, text="💻 RCON Konsole", font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=10, pady=5)
         
         console_output = ctk.CTkTextbox(console_frame, height=120, font=("Consolas", 10))
         console_output.pack(fill="both", expand=True, padx=5, pady=5)
@@ -405,8 +405,8 @@ class RconLogMixin:
             # Online-Spieler Liste anzeigen
             y_offset = 20
             if online_players:
-                map_canvas.create_text(15, y_offset, text=f"👥 Online ({len(online_players)}):", fill="#00ff88",
-                    font=("Arial", 12, "bold"), tags="marker", anchor="nw")
+                map_canvas.create_text(15, y_offset, text=f"👥 Online ({len(online_players)}):", fill="#3fb771",
+                    font=("Segoe UI", 12, "bold"), tags="marker", anchor="nw")
                 y_offset += 22
                 
                 for player in online_players[:10]:
@@ -419,12 +419,12 @@ class RconLogMixin:
                             break
                     
                     label = f"  🟢 {name}" + (f" (Lvl {level})" if level > 1 else "")
-                    map_canvas.create_text(15, y_offset, text=label, fill="#00ff88",
-                        font=("Arial", 12), tags="marker", anchor="nw")
+                    map_canvas.create_text(15, y_offset, text=label, fill="#3fb771",
+                        font=("Segoe UI", 12), tags="marker", anchor="nw")
                     y_offset += 18
             else:
                 map_canvas.create_text(15, y_offset, text="👥 Keine Spieler online", fill="#666666",
-                    font=("Arial", 11), tags="marker", anchor="nw")
+                    font=("Segoe UI", 11), tags="marker", anchor="nw")
                 y_offset += 22
             
             # Offline-Spieler (wenn aktiviert)
@@ -436,7 +436,7 @@ class RconLogMixin:
                 if offline_players:
                     y_offset += 10
                     map_canvas.create_text(15, y_offset, text=f"👻 Offline ({len(offline_players)}):", fill="#888888",
-                        font=("Arial", 11, "bold"), tags="marker", anchor="nw")
+                        font=("Segoe UI", 11, "bold"), tags="marker", anchor="nw")
                     y_offset += 20
                     
                     for player in offline_players[:5]:
@@ -444,13 +444,13 @@ class RconLogMixin:
                         level = player.get("level", 1)
                         label = f"  ⚫ {name}" + (f" (Lvl {level})" if level > 1 else "")
                         map_canvas.create_text(15, y_offset, text=label, fill="#666666",
-                            font=("Arial", 12), tags="marker", anchor="nw")
+                            font=("Segoe UI", 12), tags="marker", anchor="nw")
                         y_offset += 16
             
             # Hinweis
             map_canvas.create_text(15, canvas_size[1] - 15, 
                 text="ℹ️ Positionen nicht verfügbar (ARK ASA Limit)", fill="#444444",
-                font=("Arial", 12), tags="marker", anchor="nw")
+                font=("Segoe UI", 12), tags="marker", anchor="nw")
         
         def draw_fallback_map(w, h, error_msg=""):
             """Zeichnet Fallback-Map wenn kein Bild verfügbar"""
@@ -468,13 +468,13 @@ class RconLogMixin:
             
             # Info-Text
             map_canvas.create_text(w//2, h//2 - 20, text=f"🗺️ {ARK_MAP_DATA.get(current_map, {}).get('name', current_map)}",
-                fill="#555555", font=("Arial", 16, "bold"))
+                fill="#555555", font=("Segoe UI", 16, "bold"))
             
             if error_msg:
-                map_canvas.create_text(w//2, h//2 + 10, text=error_msg, fill="#ff6666", font=("Arial", 12))
+                map_canvas.create_text(w//2, h//2 + 10, text=error_msg, fill="#ff6666", font=("Segoe UI", 12))
             
             map_canvas.create_text(w//2, h//2 + 40, text="Klicke 📥 um ein Map-Bild zu importieren",
-                fill="#444444", font=("Arial", 12))
+                fill="#444444", font=("Segoe UI", 12))
         
         def load_map():
             nonlocal map_image, map_photo

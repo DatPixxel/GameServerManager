@@ -204,7 +204,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             dialog,
             text=f"📦 {t('import_export')}",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         # Export Bereich
@@ -214,13 +214,13 @@ class SettingsMixin:
         ctk.CTkLabel(
             export_frame,
             text=f"📤 {t('export_config')}",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
         ctk.CTkLabel(
             export_frame,
             text=t("select_servers_export"),
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="gray"
         ).pack(anchor="w", padx=10)
         
@@ -267,13 +267,13 @@ class SettingsMixin:
         ctk.CTkLabel(
             import_frame,
             text=f"📥 {t('import_config')}",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
         ctk.CTkLabel(
             import_frame,
             text="JSON-Datei mit Server-Konfigurationen importieren",
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="gray"
         ).pack(anchor="w", padx=10)
         
@@ -322,7 +322,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             scroll_frame,
             text=f"⚙️ {t('app_settings')}",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=(10, 20))
         
         # === ALLGEMEIN ===
@@ -332,7 +332,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             general_frame,
             text="📋 Allgemein",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
         # Web-Port
@@ -344,7 +344,7 @@ class SettingsMixin:
         port_entry = ctk.CTkEntry(port_row, width=80)
         port_entry.pack(side="left", padx=5)
         port_entry.insert(0, str(current_port))
-        ctk.CTkLabel(port_row, text=t("web_port_hint"), text_color="gray", font=("Arial", 12)).pack(side="left", padx=10)
+        ctk.CTkLabel(port_row, text=t("web_port_hint"), text_color="gray", font=("Segoe UI", 12)).pack(side="left", padx=10)
         
         # Sprache
         lang_row = ctk.CTkFrame(general_frame, fg_color="transparent")
@@ -371,7 +371,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             autostart_frame,
             text=f"🚀 {t('autostart')}",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
         # Programm Autostart
@@ -396,7 +396,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             autostart_frame,
             text="💡 Bei aktiviertem Server-Autostart werden alle\n     zuvor laufenden Server automatisch gestartet.",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray",
             justify="left"
         ).pack(anchor="w", padx=20, pady=(0, 10))
@@ -408,13 +408,13 @@ class SettingsMixin:
         ctk.CTkLabel(
             ie_frame,
             text=f"📦 {t('import_export')}",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(anchor="w", padx=10, pady=(10, 5))
         
         ctk.CTkLabel(
             ie_frame,
             text="Server-Konfigurationen exportieren oder importieren",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(anchor="w", padx=10)
         
@@ -441,7 +441,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             scroll_frame,
             text="⚠️ " + t("settings_restart_required"),
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="orange"
         ).pack(pady=10)
         
@@ -533,7 +533,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             scroll,
             text=f"🔔 {t('discord_settings')}",
-            font=("Arial", 22, "bold")
+            font=("Segoe UI", 22, "bold")
         ).pack(pady=(0, 20))
         
         # Aktiviert
@@ -542,22 +542,22 @@ class SettingsMixin:
             scroll,
             text=t("discord_notifications"),
             variable=enabled_var,
-            font=("Arial", 14)
+            font=("Segoe UI", 14)
         ).pack(anchor="w", padx=20, pady=10)
         
         # Webhook URL
         form_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         form_frame.pack(fill="x", padx=20, pady=10)
         
-        ctk.CTkLabel(form_frame, text=f"{t('discord_webhook_url')}:", font=("Arial", 14), anchor="w").pack(fill="x", pady=(10, 5))
-        webhook_entry = ctk.CTkEntry(form_frame, height=40, font=("Arial", 13))
+        ctk.CTkLabel(form_frame, text=f"{t('discord_webhook_url')}:", font=("Segoe UI", 14), anchor="w").pack(fill="x", pady=(10, 5))
+        webhook_entry = ctk.CTkEntry(form_frame, height=40, font=("Segoe UI", 13))
         webhook_entry.pack(fill="x")
         webhook_entry.insert(0, discord_config.get("webhook_url", ""))
         
         ctk.CTkLabel(
             form_frame,
             text=t("discord_webhook_hint"),
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(anchor="w", pady=5)
         
@@ -583,33 +583,33 @@ class SettingsMixin:
             command=test_webhook,
             width=160,
             height=38,
-            font=("Arial", 13)
+            font=("Segoe UI", 13)
         ).pack(anchor="w", pady=10)
         
         # Benachrichtigungs-Optionen
         ctk.CTkLabel(
             scroll,
             text="Benachrichtigen bei:",
-            font=("Arial", 15, "bold")
+            font=("Segoe UI", 15, "bold")
         ).pack(anchor="w", padx=20, pady=(20, 10))
         
         options_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         options_frame.pack(fill="x", padx=20)
         
         notify_start_var = ctk.BooleanVar(value=discord_config.get("notify_start", True))
-        ctk.CTkCheckBox(options_frame, text=t("discord_notify_start"), variable=notify_start_var, font=("Arial", 13)).pack(anchor="w", pady=5)
+        ctk.CTkCheckBox(options_frame, text=t("discord_notify_start"), variable=notify_start_var, font=("Segoe UI", 13)).pack(anchor="w", pady=5)
         
         notify_stop_var = ctk.BooleanVar(value=discord_config.get("notify_stop", True))
-        ctk.CTkCheckBox(options_frame, text=t("discord_notify_stop"), variable=notify_stop_var, font=("Arial", 13)).pack(anchor="w", pady=5)
+        ctk.CTkCheckBox(options_frame, text=t("discord_notify_stop"), variable=notify_stop_var, font=("Segoe UI", 13)).pack(anchor="w", pady=5)
         
         notify_crash_var = ctk.BooleanVar(value=discord_config.get("notify_crash", True))
-        ctk.CTkCheckBox(options_frame, text=t("discord_notify_crash"), variable=notify_crash_var, font=("Arial", 13)).pack(anchor="w", pady=5)
+        ctk.CTkCheckBox(options_frame, text=t("discord_notify_crash"), variable=notify_crash_var, font=("Segoe UI", 13)).pack(anchor="w", pady=5)
         
         notify_backup_var = ctk.BooleanVar(value=discord_config.get("notify_backup", True))
-        ctk.CTkCheckBox(options_frame, text=t("discord_notify_backup"), variable=notify_backup_var, font=("Arial", 13)).pack(anchor="w", pady=5)
+        ctk.CTkCheckBox(options_frame, text=t("discord_notify_backup"), variable=notify_backup_var, font=("Segoe UI", 13)).pack(anchor="w", pady=5)
         
         notify_update_var = ctk.BooleanVar(value=discord_config.get("notify_update", True))
-        ctk.CTkCheckBox(options_frame, text=t("discord_notify_update"), variable=notify_update_var, font=("Arial", 13)).pack(anchor="w", pady=5)
+        ctk.CTkCheckBox(options_frame, text=t("discord_notify_update"), variable=notify_update_var, font=("Segoe UI", 13)).pack(anchor="w", pady=5)
         
         # Buttons (außerhalb des scrollable frame für bessere Sichtbarkeit)
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
@@ -634,7 +634,7 @@ class SettingsMixin:
             command=save_settings,
             width=140,
             height=40,
-            font=("Arial", 14),
+            font=("Segoe UI", 14),
             fg_color="green"
         ).pack(side="right")
         
@@ -644,7 +644,7 @@ class SettingsMixin:
             command=dialog.destroy,
             width=120,
             height=40,
-            font=("Arial", 14),
+            font=("Segoe UI", 14),
             fg_color="gray"
         ).pack(side="left")
 
@@ -669,7 +669,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             dialog,
             text="🔗 ARK Cluster Verwaltung",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         # Info-Box
@@ -680,7 +680,7 @@ class SettingsMixin:
             info_frame,
             text="💡 Ein Cluster verbindet mehrere ARK-Server.\n"
                  "Spieler können Charakter, Dinos und Items zwischen Maps transferieren.",
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="#aaaaaa",
             justify="left"
         ).pack(padx=15, pady=10, anchor="w")
@@ -696,7 +696,7 @@ class SettingsMixin:
         ctk.CTkLabel(
             left_frame,
             text="📂 Cluster",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(pady=10)
         
         # Cluster-Liste
@@ -710,7 +710,7 @@ class SettingsMixin:
         self.cluster_detail_label = ctk.CTkLabel(
             right_frame,
             text="🎮 Server im Cluster",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         )
         self.cluster_detail_label.pack(pady=10)
         
@@ -834,7 +834,7 @@ class SettingsMixin:
                 ctk.CTkLabel(
                     frame,
                     text=f"{server_name}",
-                    font=("Arial", 12, "bold"),
+                    font=("Segoe UI", 12, "bold"),
                     anchor="w"
                 ).pack(side="left", padx=5)
                 
@@ -850,7 +850,7 @@ class SettingsMixin:
                         frame,
                         text=f"⚠️ In: {current_cluster}",
                         text_color="orange",
-                        font=("Arial", 12)
+                        font=("Segoe UI", 12)
                     ).pack(side="right", padx=10)
         
         def add_server_to_cluster(server_id):
@@ -912,7 +912,7 @@ class SettingsMixin:
             ctk.CTkLabel(
                 create_dialog,
                 text="➕ Neuen Cluster erstellen",
-                font=("Arial", 16, "bold")
+                font=("Segoe UI", 16, "bold")
             ).pack(pady=15)
             
             # Name

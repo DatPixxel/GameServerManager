@@ -46,13 +46,13 @@ class GameServerOpsMixin:
         ctk.CTkLabel(
             dialog,
             text="⛏️ Minecraft Forge Server installieren",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text="Wähle die Minecraft & Forge Version:",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=(0, 10))
         
@@ -75,7 +75,7 @@ class GameServerOpsMixin:
                 text=label_text,
                 variable=selected_version,
                 value=f"{mc_version}|{forge_version}",
-                font=("Arial", 12)
+                font=("Segoe UI", 12)
             )
             rb.pack(side="left", padx=10, pady=5)
             
@@ -87,7 +87,7 @@ class GameServerOpsMixin:
         ram_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         ram_frame.pack(fill="x", padx=30, pady=10)
         
-        ctk.CTkLabel(ram_frame, text="Server RAM:", font=("Arial", 12)).pack(side="left")
+        ctk.CTkLabel(ram_frame, text="Server RAM:", font=("Segoe UI", 12)).pack(side="left")
         
         ram_var = ctk.StringVar(value="4G")
         ram_combo = ctk.CTkComboBox(
@@ -102,7 +102,7 @@ class GameServerOpsMixin:
         ctk.CTkLabel(
             dialog,
             text="💡 Java 17+ wird benötigt für Minecraft 1.18+\n     Java 8 für ältere Versionen (1.16.5, 1.12.2)",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=5)
         
@@ -449,7 +449,7 @@ spawn-protection=0
         ctk.CTkLabel(
             dialog,
             text="⚔️ RCON für Conan Exiles einrichten",
-            font=("Arial", 16, "bold")
+            font=("Segoe UI", 16, "bold")
         ).pack(pady=20)
         
         info_text = """Um die Speichern-Funktion zu nutzen, muss RCON aktiviert werden.
@@ -469,7 +469,7 @@ spawn-protection=0
         ctk.CTkLabel(
             dialog,
             text=info_text,
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             justify="left"
         ).pack(padx=20, pady=10)
         
@@ -893,7 +893,7 @@ spawn-protection=0
         ctk.CTkLabel(
             dialog,
             text="⚙️ Server Einstellungen",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         # Scrollable Frame
@@ -1011,13 +1011,13 @@ spawn-protection=0
         ctk.CTkLabel(
             dialog,
             text="💾 Server RAM ändern",
-            font=("Arial", 18, "bold")
+            font=("Segoe UI", 18, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text=f"Aktuell: {current_ram}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack()
         
@@ -1108,21 +1108,21 @@ pause
         ctk.CTkLabel(
             dialog,
             text="🔄 Forge Version wechseln",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text=f"Aktuell: Minecraft {current_mc} | Forge {current_forge}",
-            font=("Arial", 12),
-            text_color="#00d4ff"
+            font=("Segoe UI", 12),
+            text_color="#4c9aff"
         ).pack(pady=(0, 10))
         
         # Warning
         ctk.CTkLabel(
             dialog,
             text="⚠️ ACHTUNG: Versionswechsel kann Mods inkompatibel machen!\nMache vorher ein Backup!",
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="orange"
         ).pack(pady=5)
         
@@ -1147,7 +1147,7 @@ pause
                 text=label_text,
                 variable=selected_version,
                 value=f"{mc_version}|{forge_version}",
-                font=("Arial", 12)
+                font=("Segoe UI", 12)
             )
             rb.pack(side="left", padx=10, pady=5)
         

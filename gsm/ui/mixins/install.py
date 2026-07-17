@@ -73,7 +73,7 @@ class InstallUpdateMixin:
         ctk.CTkLabel(
             dialog,
             text="🔐 Steam Login für Update",
-            font=("Arial", 18, "bold")
+            font=("Segoe UI", 18, "bold")
         ).pack(pady=15)
         
         ctk.CTkLabel(
@@ -133,11 +133,11 @@ class InstallUpdateMixin:
         ctk.CTkLabel(
             dialog,
             text=f"⬆️ {t('updating_server')}",
-            font=("Arial", 18, "bold")
+            font=("Segoe UI", 18, "bold")
         ).pack(pady=(15, 5))
         
         # Status Label
-        status_label = ctk.CTkLabel(dialog, text="Starte Update...", font=("Arial", 12))
+        status_label = ctk.CTkLabel(dialog, text="Starte Update...", font=("Segoe UI", 12))
         status_label.pack(pady=5)
         
         # Progress Bar
@@ -146,7 +146,7 @@ class InstallUpdateMixin:
         progress.set(0)
         
         # Prozent-Label
-        percent_label = ctk.CTkLabel(dialog, text="0%", font=("Arial", 14, "bold"))
+        percent_label = ctk.CTkLabel(dialog, text="0%", font=("Segoe UI", 14, "bold"))
         percent_label.pack()
         
         # Live-Output Textfeld
@@ -460,13 +460,13 @@ class InstallUpdateMixin:
         ctk.CTkLabel(
             dialog,
             text="🔐 Steam Login erforderlich",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text=f"{server_config['game']} benötigt einen Steam-Account\nfür die Installation.",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=(0, 20))
         
@@ -486,7 +486,7 @@ class InstallUpdateMixin:
         ctk.CTkLabel(
             dialog,
             text="⚠️ Dein Passwort wird nur für diese Installation verwendet\nund NICHT gespeichert!",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="orange"
         ).pack(pady=20)
         

@@ -254,14 +254,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header,
             text=f"🎮 {APP_NAME}",
-            font=("Arial", 18, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 18, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=20, pady=12)
         
         ctk.CTkLabel(
             header,
             text=f"v{VERSION}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#555555"
         ).pack(side="left", padx=5)
         
@@ -273,7 +273,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkButton(
             mid_frame,
             text=f"🌐 localhost:{web_port}",
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             width=140,
             height=35,
             fg_color="#1a1a2e",
@@ -286,7 +286,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="🔄 Update",
             width=110,
             height=35,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             fg_color="#2d5a3d",
             hover_color="#3d7a4d",
             command=self.check_for_updates
@@ -302,7 +302,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="🔗 Cluster",
             width=110,
             height=35,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             fg_color="#6a3a8a",
             hover_color="#7a4a9a",
             command=self.show_cluster_settings
@@ -313,7 +313,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="🔔 Discord",
             width=110,
             height=35,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             fg_color="#5865F2",
             hover_color="#4752C4",
             command=self.show_discord_settings
@@ -324,7 +324,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="⚙️ Settings",
             width=110,
             height=35,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             fg_color="#3a3a4a",
             hover_color="#4a4a5a",
             command=self.show_app_settings
@@ -361,7 +361,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # Resize Events
         self.resize_handle.bind("<Button-1>", self._start_resize)
         self.resize_handle.bind("<B1-Motion>", self._do_resize)
-        self.resize_handle.bind("<Enter>", lambda e: self.resize_handle.configure(fg_color="#00d4ff"))
+        self.resize_handle.bind("<Enter>", lambda e: self.resize_handle.configure(fg_color="#4c9aff"))
         self.resize_handle.bind("<Leave>", lambda e: self.resize_handle.configure(fg_color="#2a2a3a"))
         
         # ============ SIDEBAR NAVIGATION ============
@@ -376,14 +376,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             brand_frame,
             text="🎮",
-            font=("Arial", 28)
+            font=("Segoe UI", 28)
         ).pack(side="left")
         
         ctk.CTkLabel(
             brand_frame,
             text="GSM Pro",
-            font=("Arial", 18, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 18, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=8)
         
         # Trennlinie
@@ -393,7 +393,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             self.sidebar,
             text="MENU",
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 12, "bold"),
             text_color="#666666",
             anchor="w"
         ).pack(fill="x", padx=20, pady=(10, 8))
@@ -413,7 +413,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             self.sidebar,
             text="SERVERS",
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 12, "bold"),
             text_color="#666666",
             anchor="w"
         ).pack(fill="x", padx=20, pady=(5, 8))
@@ -422,7 +422,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         add_server_btn = ctk.CTkButton(
             self.sidebar,
             text="+ Add Server",
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             height=40,
             fg_color="#2d5a2d",
             hover_color="#3d7a3d",
@@ -444,7 +444,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             self.sidebar,
             text=f"v{VERSION}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#555555"
         ).pack(pady=10)
         
@@ -482,14 +482,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             btn = ctk.CTkButton(
                 self.nav_frame,
                 text=f"{icon}  {text}" + (f"  ({server_count})" if nav_id == "servers" else ""),
-                font=("Arial", 13, "bold") if is_active else ("Arial", 13),
+                font=("Segoe UI", 13, "bold") if is_active else ("Segoe UI", 13),
                 height=42,
                 anchor="w",
                 fg_color="#1e3a5f" if is_active else "transparent",
                 hover_color="#2a2a3e",
                 text_color="#ffffff" if is_active else "#aaaaaa",
                 border_width=2 if is_active else 0,
-                border_color="#00d4ff",
+                border_color="#4c9aff",
                 command=command
             )
             btn.pack(fill="x", pady=2)
@@ -522,8 +522,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header,
             text="🖥️ Server Übersicht",
-            font=("Arial", 18, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 18, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=20, pady=12)
         
         # Server Count
@@ -534,7 +534,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header,
             text=f"🟢 {running} Online  |  📦 {total} Total",
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             text_color="#888888"
         ).pack(side="right", padx=20)
         
@@ -546,7 +546,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 scroll,
                 text="Keine Server vorhanden",
-                font=("Arial", 16),
+                font=("Segoe UI", 16),
                 text_color="#666666"
             ).pack(pady=50)
             return
@@ -570,11 +570,11 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             row_inner.pack(fill="x", padx=15, pady=12)
             
             # Status Indicator
-            status_color = "#00ff88" if is_running else "#ff4444"
+            status_color = "#3fb771" if is_running else "#ff4444"
             ctk.CTkLabel(
                 row_inner,
                 text="●",
-                font=("Arial", 20),
+                font=("Segoe UI", 20),
                 text_color=status_color,
                 width=30
             ).pack(side="left")
@@ -583,7 +583,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 row_inner,
                 text=f"{icon} {server_config.get('name', 'Server')}",
-                font=("Arial", 14, "bold"),
+                font=("Segoe UI", 14, "bold"),
                 anchor="w"
             ).pack(side="left", padx=10)
             
@@ -591,7 +591,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 row_inner,
                 text=server_config.get("game", ""),
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#888888"
             ).pack(side="left", padx=20)
             
@@ -599,7 +599,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 row_inner,
                 text=f":{server_config.get('port', '?')}",
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#666666"
             ).pack(side="left")
             
@@ -613,7 +613,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 text="⚙️ Details",
                 width=90,
                 height=32,
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 fg_color="#3a3a4a",
                 hover_color="#4a4a5a",
                 command=lambda sid=server_id: self.select_server(sid)
@@ -626,7 +626,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     text="⏹ Stop",
                     width=80,
                     height=32,
-                    font=("Arial", 12),
+                    font=("Segoe UI", 12),
                     fg_color="#aa3333",
                     hover_color="#cc4444",
                     command=lambda sid=server_id: self.quick_stop_server(sid)
@@ -637,7 +637,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     text="▶ Start",
                     width=80,
                     height=32,
-                    font=("Arial", 12),
+                    font=("Segoe UI", 12),
                     fg_color="#2d5a2d",
                     hover_color="#3d7a3d",
                     command=lambda sid=server_id: self.quick_start_server(sid)
@@ -674,7 +674,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         btn = ctk.CTkButton(
             parent,
             text=f"{icon} {text}",
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             height=32,
             fg_color="transparent",
             hover_color="#2a2a3a",
@@ -715,8 +715,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header_frame,
             text="🔧 Tools & Utilities",
-            font=("Arial", 22, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 22, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=20, pady=15)
         
         # Scrollable Content
@@ -758,21 +758,21 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             card,
             text=icon,
-            font=("Arial", 36)
+            font=("Segoe UI", 36)
         ).pack(pady=(20, 10))
         
         # Title
         ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack()
         
         # Description
         ctk.CTkLabel(
             card,
             text=desc,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#666666"
         ).pack(pady=5)
         
@@ -782,7 +782,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="Öffnen",
             width=100,
             height=32,
-            fg_color="#00d4ff",
+            fg_color="#4c9aff",
             hover_color="#00b4d8",
             text_color="#000000",
             command=command
@@ -809,8 +809,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header_frame,
             text="📊 System Monitor",
-            font=("Arial", 22, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 22, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=20, pady=15)
         
         # Content Frame
@@ -832,7 +832,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         
         # CPU Card
         self.create_stat_card(content, "CPU", f"{cpu_percent:.0f}%", 
-                             cpu_percent/100, "#00ff88" if cpu_percent < 70 else "#ff4444", 0)
+                             cpu_percent/100, "#3fb771" if cpu_percent < 70 else "#ff4444", 0)
         
         # RAM Card
         if ram:
@@ -840,7 +840,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ram_used = ram.used / (1024**3)
             ram_total = ram.total / (1024**3)
             self.create_stat_card(content, "RAM", f"{ram_used:.1f} / {ram_total:.1f} GB",
-                                 ram_percent/100, "#00d4ff" if ram_percent < 80 else "#ff4444", 1)
+                                 ram_percent/100, "#4c9aff" if ram_percent < 80 else "#ff4444", 1)
         
         # Disk Card
         if disk:
@@ -857,7 +857,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             server_frame,
             text="🖥️ Server Ressourcen",
-            font=("Arial", 16, "bold")
+            font=("Segoe UI", 16, "bold")
         ).pack(anchor="w", padx=20, pady=15)
         
         # Server Liste mit Ressourcen
@@ -877,14 +877,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#666666"
         ).pack(pady=(20, 5))
         
         ctk.CTkLabel(
             card,
             text=value,
-            font=("Arial", 24, "bold"),
+            font=("Segoe UI", 24, "bold"),
             text_color=color
         ).pack()
         
@@ -904,7 +904,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             content,
             text=name,
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             width=150,
             anchor="w"
         ).pack(side="left")
@@ -914,8 +914,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             content,
             text=f"CPU: {cpu:.0f}%",
-            font=("Arial", 12),
-            text_color="#00ff88" if cpu < 50 else "#ffaa00" if cpu < 80 else "#ff4444",
+            font=("Segoe UI", 12),
+            text_color="#3fb771" if cpu < 50 else "#ffaa00" if cpu < 80 else "#ff4444",
             width=80
         ).pack(side="left", padx=10)
         
@@ -924,8 +924,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             content,
             text=f"RAM: {ram:.1f} GB",
-            font=("Arial", 12),
-            text_color="#00d4ff",
+            font=("Segoe UI", 12),
+            text_color="#4c9aff",
             width=100
         ).pack(side="left", padx=10)
     
@@ -1014,7 +1014,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         expand_label = ctk.CTkLabel(
             header_content,
             text=expand_icon,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#888888",
             width=15
         )
@@ -1024,13 +1024,13 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header_content,
             text=f"{icon} {game}",
-            font=("Arial", 13, "bold"),
+            font=("Segoe UI", 13, "bold"),
             anchor="w"
         ).pack(side="left", padx=(5, 0))
         
         # Server-Anzahl Badge
         badge_color = "#2d5a2d" if running_count > 0 else "#4a4a5a"
-        badge_text_color = "#00ff88" if running_count > 0 else "#888888"
+        badge_text_color = "#3fb771" if running_count > 0 else "#888888"
         
         badge = ctk.CTkFrame(header_content, fg_color=badge_color, corner_radius=10)
         badge.pack(side="right")
@@ -1038,7 +1038,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             badge,
             text=f"{running_count}/{len(servers)}",
-            font=("Arial", 10, "bold"),
+            font=("Segoe UI", 10, "bold"),
             text_color=badge_text_color,
             padx=8,
             pady=2
@@ -1070,7 +1070,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         is_running = instance and instance.is_running() if instance else False
         
         # Frame für den Server mit Status-abhängiger Farbe
-        border_color = "#00ff88" if is_running else "#3a3a4a"
+        border_color = "#3fb771" if is_running else "#3a3a4a"
         frame = ctk.CTkFrame(
             self.server_list_frame, 
             cursor="hand2",
@@ -1096,19 +1096,19 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             top_row,
             text=server_config['name'],
-            font=("Arial", 12, "bold"),
+            font=("Segoe UI", 12, "bold"),
             anchor="w"
         ).pack(side="left")
         
         # Status Badge
-        status_color = "#00ff88" if is_running else "#ff4444"
+        status_color = "#3fb771" if is_running else "#ff4444"
         status_text = "●" if is_running else "○"
         
         status_badge = ctk.CTkLabel(
             top_row,
             text=status_text,
             text_color=status_color,
-            font=("Arial", 12)
+            font=("Segoe UI", 12)
         )
         status_badge.pack(side="right")
         
@@ -1130,7 +1130,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 content,
                 text="  ".join(info_text_parts),
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#666666",
                 anchor="w"
             ).pack(fill="x", pady=(3, 0))
@@ -1143,7 +1143,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 content,
                 text=f"🔗 {cluster_name}",
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#9c27b0",
                 anchor="w"
             ).pack(fill="x", pady=(2, 0))
@@ -1170,19 +1170,19 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             msg_frame,
             text="🎮",
-            font=("Arial", 72)
+            font=("Segoe UI", 72)
         ).pack(pady=20)
         
         ctk.CTkLabel(
             msg_frame,
             text=t("no_servers"),
-            font=("Arial", 24, "bold")
+            font=("Segoe UI", 24, "bold")
         ).pack(pady=10)
         
         ctk.CTkLabel(
             msg_frame,
             text=t("add_first_server"),
-            font=("Arial", 16),
+            font=("Segoe UI", 16),
             text_color="gray"
         ).pack(pady=10)
         
@@ -1190,7 +1190,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             msg_frame,
             text="+ " + t("add_server"),
             command=self.show_add_server_dialog,
-            font=("Arial", 16),
+            font=("Segoe UI", 16),
             height=50,
             width=200
         ).pack(pady=30)
@@ -1221,8 +1221,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header_frame,
             text="📊 Dashboard",
-            font=("Arial", 16, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 16, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left", padx=15, pady=10)
         
         # Refresh Button (klein)
@@ -1231,7 +1231,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="🔄",
             width=28,
             height=28,
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             fg_color="#2a2a3a",
             hover_color="#3a3a4a",
             command=self.show_dashboard
@@ -1243,8 +1243,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             live_badge,
             text="● LIVE",
-            font=("Arial", 12),
-            text_color="#00ff88",
+            font=("Segoe UI", 12),
+            text_color="#3fb771",
             padx=8,
             pady=2
         ).pack()
@@ -1263,8 +1263,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             online_badge,
             text=f"🟢 {running_servers}",
-            font=("Arial", 12),
-            text_color="#00ff88",
+            font=("Segoe UI", 12),
+            text_color="#3fb771",
             padx=8,
             pady=3
         ).pack()
@@ -1275,7 +1275,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             total_badge,
             text=f"📦 {total_servers}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#888888",
             padx=8,
             pady=3
@@ -1332,7 +1332,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             corner_radius=10,
             fg_color="#1e1e2e",
             border_width=1,
-            border_color="#00ff88" if is_running else "#2a2a3a"
+            border_color="#3fb771" if is_running else "#2a2a3a"
         )
         card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
         
@@ -1349,17 +1349,17 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header_content,
             text=f"{icon} {game[:15]}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#888888"
         ).pack(side="left")
         
         # Status Text
         status_text = "●" if is_running else "○"
-        status_color = "#00ff88" if is_running else "#ff4444"
+        status_color = "#3fb771" if is_running else "#ff4444"
         ctk.CTkLabel(
             header_content,
             text=status_text,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color=status_color
         ).pack(side="right")
         
@@ -1370,7 +1370,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             card,
             text=name,
-            font=("Arial", 13, "bold"),
+            font=("Segoe UI", 13, "bold"),
             anchor="w"
         ).pack(fill="x", padx=12, pady=(6, 3))
         
@@ -1387,7 +1387,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             card,
             text=info_text,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#666666",
             anchor="w"
         ).pack(fill="x", padx=12, pady=(0, 5))
@@ -1403,20 +1403,20 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             cpu_value = resources.get("cpu", 0)
             ram_gb = resources.get("ram_gb", 0)
             
-            cpu_color = "#00ff88" if cpu_value < 50 else "#ffaa00" if cpu_value < 80 else "#ff4444"
+            cpu_color = "#3fb771" if cpu_value < 50 else "#ffaa00" if cpu_value < 80 else "#ff4444"
             
             ctk.CTkLabel(
                 stats_inner,
                 text=f"CPU {cpu_value:.0f}%",
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color=cpu_color
             ).pack(side="left")
             
             ctk.CTkLabel(
                 stats_inner,
                 text=f"RAM {ram_gb:.1f}G",
-                font=("Arial", 12),
-                text_color="#00d4ff"
+                font=("Segoe UI", 12),
+                text_color="#4c9aff"
             ).pack(side="right")
         
         # === Action Buttons (kompakt) ===
@@ -1429,7 +1429,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="⚙️",
             width=32,
             height=26,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             fg_color="#3a3a4a",
             hover_color="#4a4a5a",
             command=lambda sid=server_id: self.select_server(sid)
@@ -1442,7 +1442,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 text="⏹ Stop",
                 width=55,
                 height=26,
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 fg_color="#6a2a2a",
                 hover_color="#8a3a3a",
                 command=lambda sid=server_id: self.quick_stop_server(sid)
@@ -1453,7 +1453,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 text="▶ Start",
                 width=55,
                 height=26,
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 fg_color="#2a5a2a",
                 hover_color="#3a7a3a",
                 command=lambda sid=server_id: self.quick_start_server(sid)
@@ -1467,7 +1467,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             row,
             text=label,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#666666",
             width=60,
             anchor="w"
@@ -1476,7 +1476,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             row,
             text=value[:25] + "..." if len(value) > 25 else value,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#aaaaaa",
             anchor="w"
         ).pack(side="left")
@@ -1562,13 +1562,13 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             name_frame,
             text=icon,
-            font=("Arial", 32)
+            font=("Segoe UI", 32)
         ).pack(side="left")
         
         ctk.CTkLabel(
             name_frame,
             text=server_config.get('name', 'Server'),
-            font=("Arial", 22, "bold"),
+            font=("Segoe UI", 22, "bold"),
             text_color="#ffffff"
         ).pack(side="left", padx=10)
         
@@ -1576,7 +1576,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             left_frame,
             text=server_config.get("game", "Unknown"),
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="#666666"
         ).pack(anchor="w", padx=45)
         
@@ -1586,7 +1586,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         
         # Status Badge
         status_bg = "#1a4a1a" if is_running else "#4a1a1a"
-        status_color = "#00ff88" if is_running else "#ff4444"
+        status_color = "#3fb771" if is_running else "#ff4444"
         status_text = "● ONLINE" if is_running else "○ OFFLINE"
         
         status_badge = ctk.CTkFrame(right_frame, fg_color=status_bg, corner_radius=15)
@@ -1595,7 +1595,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             status_badge,
             text=status_text,
-            font=("Arial", 11, "bold"),
+            font=("Segoe UI", 11, "bold"),
             text_color=status_color,
             padx=15,
             pady=5
@@ -1608,7 +1608,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 right_frame,
                 text=stats_text,
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#666666"
             ).pack()
         
@@ -1695,7 +1695,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             connect_header,
             text="🔗 Connection",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(side="left")
         
         # Content
@@ -1743,7 +1743,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 connect_content,
                 text=f"💡 {instr_text}",
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#666666"
             ).pack(anchor="w", padx=12, pady=(0, 10))
         
@@ -1754,8 +1754,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 hint_frame,
                 text="✅ Tailscale aktiv - Kein Port-Forwarding nötig!",
-                font=("Arial", 12),
-                text_color="#00ff88",
+                font=("Segoe UI", 12),
+                text_color="#3fb771",
                 pady=8
             ).pack()
         
@@ -1773,14 +1773,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 mods_header,
                 text="🧩 Mods",
-                font=("Arial", 14, "bold")
+                font=("Segoe UI", 14, "bold")
             ).pack(side="left")
             
             mods = server_config.get("mods", [])
             ctk.CTkLabel(
                 mods_header,
                 text=f"{len(mods)} installed",
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 text_color="#666666"
             ).pack(side="right")
             
@@ -1796,7 +1796,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     ctk.CTkLabel(
                         mod_row,
                         text=f"📦 {mod_id}",
-                        font=("Arial", 12)
+                        font=("Segoe UI", 12)
                     ).pack(side="left")
                     
                     ctk.CTkButton(
@@ -1804,7 +1804,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                         text="✕",
                         width=24,
                         height=24,
-                        font=("Arial", 12),
+                        font=("Segoe UI", 12),
                         fg_color="#4a2a2a",
                         hover_color="#6a3a3a",
                         command=lambda mid=mod_id: self.remove_mod(server_id, mid)
@@ -1814,7 +1814,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     mods_content,
                     text="No mods installed",
                     text_color="#666666",
-                    font=("Arial", 12),
+                    font=("Segoe UI", 12),
                     pady=10
                 ).pack()
             
@@ -1827,7 +1827,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 placeholder_text="Mod ID...",
                 width=150,
                 height=30,
-                font=("Arial", 12)
+                font=("Segoe UI", 12)
             )
             self.mod_entry.pack(side="left")
             
@@ -1836,7 +1836,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 text="+ Add",
                 width=60,
                 height=30,
-                font=("Arial", 12),
+                font=("Segoe UI", 12),
                 fg_color="#2d5a2d",
                 hover_color="#3d7a3d",
                 command=lambda: self.add_mod(server_id)
@@ -1853,7 +1853,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             folders_header,
             text="📁 Folders & Files",
-            font=("Arial", 14, "bold")
+            font=("Segoe UI", 14, "bold")
         ).pack(side="left")
         
         # Buttons
@@ -1869,7 +1869,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             hover_color="#4a4a5a",
             width=80,
             height=30,
-            font=("Arial", 12)
+            font=("Segoe UI", 12)
         ).pack(side="left", padx=2)
         
         # Config-Ordner öffnen (wenn config_path definiert)
@@ -1883,7 +1883,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 hover_color="#4a4a5a",
                 width=80,
                 height=30,
-                font=("Arial", 12)
+                font=("Segoe UI", 12)
             ).pack(side="left", padx=2)
         
         # Save-Ordner öffnen (wenn save_path definiert)
@@ -1897,7 +1897,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 hover_color="#4a4a5a",
                 width=80,
                 height=30,
-                font=("Arial", 12)
+                font=("Segoe UI", 12)
             ).pack(side="left", padx=2)
         
         # Logs-Ordner öffnen
@@ -1909,7 +1909,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             hover_color="#4a4a5a",
             width=70,
             height=30,
-            font=("Arial", 12)
+            font=("Segoe UI", 12)
         ).pack(side="left", padx=2)
         
         # ============ END UNIVERSAL SERVER FOLDERS SECTION ============
@@ -1926,7 +1926,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 header_mc,
                 text="⛏️ Minecraft Forge Server",
-                font=("Arial", 18, "bold")
+                font=("Segoe UI", 18, "bold")
             ).pack(side="left")
             
             # Version Info
@@ -1937,8 +1937,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 header_mc,
                 text=f"MC {mc_version} | Forge {forge_version} | RAM: {ram}",
-                font=("Arial", 12),
-                text_color="#00d4ff"
+                font=("Segoe UI", 12),
+                text_color="#4c9aff"
             ).pack(side="right", padx=10)
             
             # Buttons Frame
@@ -1996,7 +1996,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 mods_list_frame,
                 text="📋 Installierte Mods:",
-                font=("Arial", 14, "bold")
+                font=("Segoe UI", 14, "bold")
             ).pack(anchor="w", padx=15, pady=(10, 5))
             
             # Mods aus dem Ordner lesen
@@ -2020,7 +2020,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                         ctk.CTkLabel(
                             mod_row,
                             text=f"🧩 {mod_name}",
-                            font=("Arial", 11),
+                            font=("Segoe UI", 11),
                             anchor="w"
                         ).pack(side="left", padx=10, pady=5, fill="x", expand=True)
                         
@@ -2038,21 +2038,21 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     ctk.CTkLabel(
                         mods_list_frame,
                         text=f"📊 {len(mod_files)} Mod(s) installiert",
-                        font=("Arial", 12),
+                        font=("Segoe UI", 12),
                         text_color="gray"
                     ).pack(anchor="w", padx=15, pady=(5, 10))
                 else:
                     ctk.CTkLabel(
                         mods_list_frame,
                         text="Keine Mods installiert.\nKopiere .jar Dateien in den Mods-Ordner!",
-                        font=("Arial", 11),
+                        font=("Segoe UI", 11),
                         text_color="gray"
                     ).pack(padx=15, pady=15)
             else:
                 ctk.CTkLabel(
                     mods_list_frame,
                     text="⚠️ Mods-Ordner nicht gefunden.\nServer zuerst installieren!",
-                    font=("Arial", 11),
+                    font=("Segoe UI", 11),
                     text_color="orange"
                 ).pack(padx=15, pady=15)
         
@@ -2070,7 +2070,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 header_conan,
                 text="⚔️ Conan Exiles Server",
-                font=("Arial", 18, "bold")
+                font=("Segoe UI", 18, "bold")
             ).pack(side="left")
             
             # Buttons Frame
@@ -2138,7 +2138,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 ctk.CTkLabel(
                     conan_frame,
                     text=f"🧩 Konfiguriert: {cfg_count} | Installiert: {inst_count} | Fehlend: {miss_count} | Extra: {extra_count}",
-                    font=("Arial", 11),
+                    font=("Segoe UI", 11),
                     text_color="#7dcfff"
                 ).pack(anchor="w", padx=20, pady=(2, 8))
 
@@ -2146,7 +2146,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     ctk.CTkLabel(
                         conan_frame,
                         text="Mod-Auswahl",
-                        font=("Arial", 10, "bold"),
+                        font=("Segoe UI", 10, "bold"),
                         text_color="#c9d1ff"
                     ).pack(anchor="w", padx=20, pady=(0, 4))
 
@@ -2172,7 +2172,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 ctk.CTkLabel(
                     conan_frame,
                     text=f"{txt} Letzter Mod-Sync: {dt} - {sync_info.get('message', '')}",
-                    font=("Arial", 10),
+                    font=("Segoe UI", 10),
                     text_color="#9fd3ff" if sync_info.get("success") else "#ffb86c",
                     wraplength=1100,
                     justify="left"
@@ -2190,14 +2190,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 ctk.CTkLabel(
                     conan_frame,
                     text=f"💾 Letzte Speicherung: {last_save}",
-                    font=("Arial", 11),
-                    text_color="#00ff88"
+                    font=("Segoe UI", 11),
+                    text_color="#3fb771"
                 ).pack(anchor="w", padx=20, pady=(5, 15))
             else:
                 ctk.CTkLabel(
                     conan_frame,
                     text="⚠️ Noch kein Savegame vorhanden",
-                    font=("Arial", 11),
+                    font=("Segoe UI", 11),
                     text_color="orange"
                 ).pack(anchor="w", padx=20, pady=(5, 15))
         
@@ -2215,7 +2215,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 header_enshrouded,
                 text="🌑 Enshrouded Server",
-                font=("Arial", 18, "bold")
+                font=("Segoe UI", 18, "bold")
             ).pack(side="left")
             
             # Buttons Frame
@@ -2275,8 +2275,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     ctk.CTkLabel(
                         info_frame,
                         text=f"📛 Name: {server_name}  |  👥 Slots: {slot_count}  |  🎮 Preset: {preset}",
-                        font=("Arial", 11),
-                        text_color="#00ff88"
+                        font=("Segoe UI", 11),
+                        text_color="#3fb771"
                     ).pack(anchor="w")
                 except:
                     pass
@@ -2284,7 +2284,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 ctk.CTkLabel(
                     enshrouded_frame,
                     text="⚠️ Config-Datei nicht gefunden. Server zuerst starten!",
-                    font=("Arial", 11),
+                    font=("Segoe UI", 11),
                     text_color="orange"
                 ).pack(anchor="w", padx=20, pady=(5, 15))
         
@@ -2301,8 +2301,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             log_header,
             text="📋 Console",
-            font=("Arial", 18, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 18, "bold"),
+            text_color="#4c9aff"
         ).pack(side="left")
         
         # Live Indicator
@@ -2312,8 +2312,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 live_badge,
                 text="● LIVE",
-                font=("Arial", 9, "bold"),
-                text_color="#00ff88",
+                font=("Segoe UI", 9, "bold"),
+                text_color="#3fb771",
                 padx=8,
                 pady=2
             ).pack()
@@ -2324,7 +2324,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="🗑️ Clear",
             width=70,
             height=28,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             fg_color="#4a4a5a",
             hover_color="#5a5a6a",
             command=lambda: self.clear_server_logs(server_id)
@@ -2367,10 +2367,10 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text_color = "#ffaa00"
         # Erfolg - Grün
         elif any(x in log_lower for x in ["success", "erfolg", "✅", "started", "gestartet", "online", "running", "🟢"]):
-            text_color = "#00ff88"
+            text_color = "#3fb771"
         # Info - Cyan
         elif any(x in log_lower for x in ["info", "ℹ️", "📋", "installing", "downloading", "updating"]):
-            text_color = "#00d4ff"
+            text_color = "#4c9aff"
         # Stoppen - Orange
         elif any(x in log_lower for x in ["stop", "shutdown", "beendet", "offline", "🔴"]):
             text_color = "#ff8844"
@@ -2401,7 +2401,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         btn = ctk.CTkButton(
             parent,
             text=btn_text,
-            font=("Arial", font_size),
+            font=("Segoe UI", font_size),
             width=btn_width,
             height=btn_height,
             fg_color=bg_color,
@@ -2424,22 +2424,22 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             content,
             text=icon,
-            font=("Arial", 22)
+            font=("Segoe UI", 22)
         ).pack()
         
         # Value
         ctk.CTkLabel(
             content,
             text=str(value),
-            font=("Arial", 16, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 16, "bold"),
+            text_color="#4c9aff"
         ).pack()
         
         # Title
         ctk.CTkLabel(
             content,
             text=title,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#888888"
         ).pack()
     
@@ -2452,7 +2452,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             row,
             text=label,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             text_color="#aaaaaa",
             width=100,
             anchor="w"
@@ -2463,9 +2463,9 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             row,
             width=200,
             height=34,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             fg_color="#1a1a2a",
-            border_color="#3a3a4a" if not highlight else "#00d4ff"
+            border_color="#3a3a4a" if not highlight else "#4c9aff"
         )
         entry.insert(0, value)
         entry.configure(state="readonly")
@@ -2477,7 +2477,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             text="📋",
             width=38,
             height=34,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             fg_color="#3a3a4a",
             hover_color="#4a4a5a",
             command=lambda v=value: self.copy_to_clipboard(v)
@@ -2488,8 +2488,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 row,
                 text="✓",
-                font=("Arial", 12),
-                text_color="#00ff88"
+                font=("Segoe UI", 12),
+                text_color="#3fb771"
             ).pack(side="left", padx=5)
     
     def create_info_card(self, parent, col, title, value, icon):
@@ -2500,20 +2500,20 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             card,
             text=icon,
-            font=("Arial", 32)
+            font=("Segoe UI", 32)
         ).pack(pady=(15, 5))
         
         ctk.CTkLabel(
             card,
             text=value,
-            font=("Arial", 20, "bold"),
-            text_color="#00d4ff"
+            font=("Segoe UI", 20, "bold"),
+            text_color="#4c9aff"
         ).pack()
         
         ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=(5, 15))
     
@@ -2780,11 +2780,11 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             scroll,
             text=f"✏️ Server bearbeiten",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=(0, 20))
         
         # === ALLGEMEIN ===
-        ctk.CTkLabel(scroll, text="📋 Allgemein", font=("Arial", 14, "bold")).pack(anchor="w", pady=(10, 5))
+        ctk.CTkLabel(scroll, text="📋 Allgemein", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(10, 5))
         
         general_frame = ctk.CTkFrame(scroll)
         general_frame.pack(fill="x", pady=5)
@@ -2802,7 +2802,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         players_entry.insert(0, str(server_config.get("max_players", 70)))
         
         # === PORTS ===
-        ctk.CTkLabel(scroll, text="🔌 Ports", font=("Arial", 14, "bold")).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="🔌 Ports", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(20, 5))
         
         ports_frame = ctk.CTkFrame(scroll)
         ports_frame.pack(fill="x", pady=5)
@@ -2823,7 +2823,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         query_entry.insert(0, str(server_config.get("query_port", 27015)))
         
         # === PASSWÖRTER ===
-        ctk.CTkLabel(scroll, text="🔐 Passwörter", font=("Arial", 14, "bold")).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="🔐 Passwörter", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(20, 5))
         
         pass_frame = ctk.CTkFrame(scroll)
         pass_frame.pack(fill="x", pady=5)
@@ -2841,7 +2841,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         admin_pass_entry.insert(0, server_config.get("admin_password", "admin"))
         
         # === BACKUP ===
-        ctk.CTkLabel(scroll, text="💾 Backup-Einstellungen", font=("Arial", 14, "bold")).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="💾 Backup-Einstellungen", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(20, 5))
         
         backup_frame = ctk.CTkFrame(scroll)
         backup_frame.pack(fill="x", pady=5)
@@ -2893,7 +2893,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         
         # === CLUSTER (nur für ARK) ===
         if "ARK" in server_config.get("game", ""):
-            ctk.CTkLabel(scroll, text="🔗 Cluster", font=("Arial", 14, "bold")).pack(anchor="w", pady=(20, 5))
+            ctk.CTkLabel(scroll, text="🔗 Cluster", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(20, 5))
             
             cluster_frame = ctk.CTkFrame(scroll)
             cluster_frame.pack(fill="x", pady=5)
@@ -3047,13 +3047,13 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             dialog,
             text=f"📋 {t('clone_server_title')}",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text=f"Original: {server_config.get('name', 'Server')}",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=(0, 20))
         
@@ -3089,7 +3089,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             dialog,
             text="⚠️ Server-Dateien kopieren kann lange dauern (mehrere GB)",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="orange"
         ).pack(pady=10)
         
@@ -3252,14 +3252,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             header,
             text=f"📝 {t('config_editor_title')}",
-            font=("Arial", 18, "bold")
+            font=("Segoe UI", 18, "bold")
         ).pack(side="left")
         
         if not config_files:
             ctk.CTkLabel(
                 dialog,
                 text=f"📭 {t('config_no_files')}",
-                font=("Arial", 14),
+                font=("Segoe UI", 14),
                 text_color="gray"
             ).pack(pady=50)
             
@@ -3302,7 +3302,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         editor.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Status
-        status_label = ctk.CTkLabel(dialog, text="", font=("Arial", 12))
+        status_label = ctk.CTkLabel(dialog, text="", font=("Segoe UI", 12))
         status_label.pack(pady=5)
         
         # Buttons
@@ -3549,14 +3549,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ctk.CTkLabel(
             dialog,
             text="🎉 Update verfügbar!",
-            font=("Arial", 24, "bold")
+            font=("Segoe UI", 24, "bold")
         ).pack(pady=20)
         
         ctk.CTkLabel(
             dialog,
             text=f"Aktuelle Version: v{update_info['current']}\n"
                  f"Neue Version: v{update_info['latest']}",
-            font=("Arial", 14)
+            font=("Segoe UI", 14)
         ).pack(pady=10)
         
         # Release Notes
@@ -3567,7 +3567,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ctk.CTkLabel(
                 notes_frame,
                 text="📋 Änderungen:",
-                font=("Arial", 12, "bold")
+                font=("Segoe UI", 12, "bold")
             ).pack(anchor="w", padx=10, pady=5)
             
             notes_text = ctk.CTkTextbox(notes_frame, height=120)
@@ -3579,7 +3579,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.update_progress = ctk.CTkProgressBar(dialog, width=400)
         self.update_progress.set(0)
         
-        self.update_status = ctk.CTkLabel(dialog, text="", font=("Arial", 11))
+        self.update_status = ctk.CTkLabel(dialog, text="", font=("Segoe UI", 11))
         
         # Buttons
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")

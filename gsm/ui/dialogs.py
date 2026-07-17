@@ -47,13 +47,13 @@ class AddServerDialog(ctk.CTkToplevel):
         scroll.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Server-Name
-        ctk.CTkLabel(scroll, text=t("server_name") + ":", font=("Arial", 14)).pack(anchor="w", pady=(10, 5))
-        self.name_entry = ctk.CTkEntry(scroll, width=450, height=38, font=("Arial", 13))
+        ctk.CTkLabel(scroll, text=t("server_name") + ":", font=("Segoe UI", 14)).pack(anchor="w", pady=(10, 5))
+        self.name_entry = ctk.CTkEntry(scroll, width=450, height=38, font=("Segoe UI", 13))
         self.name_entry.pack(pady=5)
         self.name_entry.insert(0, "Mein Server")
         
         # Spiel auswählen
-        ctk.CTkLabel(scroll, text=t("game") + ":", font=("Arial", 14)).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text=t("game") + ":", font=("Segoe UI", 14)).pack(anchor="w", pady=(20, 5))
         self.game_var = ctk.StringVar(value="ARK: Survival Ascended")
         self.game_menu = ctk.CTkOptionMenu(
             scroll,
@@ -61,13 +61,13 @@ class AddServerDialog(ctk.CTkToplevel):
             values=list(SUPPORTED_GAMES.keys()),
             width=450,
             height=38,
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             command=self.on_game_changed
         )
         self.game_menu.pack(pady=5)
         
         # Map (für ARK)
-        self.map_label = ctk.CTkLabel(scroll, text=t("map") + ":", font=("Arial", 14))
+        self.map_label = ctk.CTkLabel(scroll, text=t("map") + ":", font=("Segoe UI", 14))
         self.map_label.pack(anchor="w", pady=(20, 5))
         
         self.map_var = ctk.StringVar(value="The Island")
@@ -77,7 +77,7 @@ class AddServerDialog(ctk.CTkToplevel):
             values=[m["name"] for m in SUPPORTED_GAMES["ARK: Survival Ascended"]["maps"]],
             width=450,
             height=38,
-            font=("Arial", 13)
+            font=("Segoe UI", 13)
         )
         self.map_menu.pack(pady=5)
         
@@ -85,12 +85,12 @@ class AddServerDialog(ctk.CTkToplevel):
         port_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         port_frame.pack(fill="x", pady=(20, 5))
         
-        ctk.CTkLabel(port_frame, text=t("port") + ":", font=("Arial", 14)).pack(side="left")
-        self.port_entry = ctk.CTkEntry(port_frame, width=120, height=38, font=("Arial", 13))
+        ctk.CTkLabel(port_frame, text=t("port") + ":", font=("Segoe UI", 14)).pack(side="left")
+        self.port_entry = ctk.CTkEntry(port_frame, width=120, height=38, font=("Segoe UI", 13))
         self.port_entry.pack(side="left", padx=10)
         
-        ctk.CTkLabel(port_frame, text=t("query_port") + ":", font=("Arial", 14)).pack(side="left", padx=(20, 0))
-        self.query_port_entry = ctk.CTkEntry(port_frame, width=120, height=38, font=("Arial", 13))
+        ctk.CTkLabel(port_frame, text=t("query_port") + ":", font=("Segoe UI", 14)).pack(side="left", padx=(20, 0))
+        self.query_port_entry = ctk.CTkEntry(port_frame, width=120, height=38, font=("Segoe UI", 13))
         self.query_port_entry.pack(side="left", padx=10)
         
         # Automatisch freie Ports setzen
@@ -101,28 +101,28 @@ class AddServerDialog(ctk.CTkToplevel):
         self.query_port_entry.insert(0, str(free_query))
         
         # Max Players
-        ctk.CTkLabel(scroll, text=t("max_players") + ":", font=("Arial", 14)).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text=t("max_players") + ":", font=("Segoe UI", 14)).pack(anchor="w", pady=(20, 5))
         self.players_entry = ctk.CTkEntry(scroll, width=100, height=35)
         self.players_entry.pack(anchor="w", pady=5)
         self.players_entry.insert(0, "10")
         
         # Passwörter
-        ctk.CTkLabel(scroll, text="🔐 " + t("password") + ":", font=("Arial", 14)).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text="🔐 " + t("password") + ":", font=("Segoe UI", 14)).pack(anchor="w", pady=(20, 5))
         
         pw_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         pw_frame.pack(fill="x", pady=5)
         
-        ctk.CTkLabel(pw_frame, text="Server:", font=("Arial", 11)).pack(side="left")
+        ctk.CTkLabel(pw_frame, text="Server:", font=("Segoe UI", 11)).pack(side="left")
         self.server_pw_entry = ctk.CTkEntry(pw_frame, width=150, height=30, placeholder_text="(optional)")
         self.server_pw_entry.pack(side="left", padx=(5, 20))
         
-        ctk.CTkLabel(pw_frame, text="Admin:", font=("Arial", 11)).pack(side="left")
+        ctk.CTkLabel(pw_frame, text="Admin:", font=("Segoe UI", 11)).pack(side="left")
         self.admin_pw_entry = ctk.CTkEntry(pw_frame, width=150, height=30)
         self.admin_pw_entry.pack(side="left", padx=5)
         self.admin_pw_entry.insert(0, "admin")
         
         # Auto-Optionen
-        ctk.CTkLabel(scroll, text=t("settings") + ":", font=("Arial", 14)).pack(anchor="w", pady=(20, 5))
+        ctk.CTkLabel(scroll, text=t("settings") + ":", font=("Segoe UI", 14)).pack(anchor="w", pady=(20, 5))
         
         self.auto_restart_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(
@@ -142,7 +142,7 @@ class AddServerDialog(ctk.CTkToplevel):
         backup_interval_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         backup_interval_frame.pack(fill="x", pady=(5, 5), padx=(25, 0))
         
-        ctk.CTkLabel(backup_interval_frame, text=t("backup_interval") + ":", font=("Arial", 12)).pack(side="left")
+        ctk.CTkLabel(backup_interval_frame, text=t("backup_interval") + ":", font=("Segoe UI", 12)).pack(side="left")
         
         self.backup_interval_var = ctk.StringVar(value=t("backup_interval_3h"))
         self.backup_interval_menu = ctk.CTkOptionMenu(
@@ -155,7 +155,7 @@ class AddServerDialog(ctk.CTkToplevel):
         self.backup_interval_menu.pack(side="left", padx=10)
         
         # Max Backups
-        ctk.CTkLabel(backup_interval_frame, text=t("backup_max_count") + ":", font=("Arial", 12)).pack(side="left", padx=(20, 0))
+        ctk.CTkLabel(backup_interval_frame, text=t("backup_max_count") + ":", font=("Segoe UI", 12)).pack(side="left", padx=(20, 0))
         self.max_backups_entry = ctk.CTkEntry(backup_interval_frame, width=60, height=30)
         self.max_backups_entry.pack(side="left", padx=5)
         self.max_backups_entry.insert(0, "10")

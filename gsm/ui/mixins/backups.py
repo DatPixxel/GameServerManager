@@ -38,8 +38,8 @@ class BackupsMixin:
         y = (dialog.winfo_screenheight() - 480) // 2
         dialog.geometry(f"420x480+{x}+{y}")
 
-        ctk.CTkLabel(dialog, text=f"💾 {t('backup_manager')}", font=("Arial", 18, "bold")).pack(pady=(20, 5))
-        ctk.CTkLabel(dialog, text="Server auswählen:", font=("Arial", 12), text_color="#888888").pack(pady=(0, 10))
+        ctk.CTkLabel(dialog, text=f"💾 {t('backup_manager')}", font=("Segoe UI", 18, "bold")).pack(pady=(20, 5))
+        ctk.CTkLabel(dialog, text="Server auswählen:", font=("Segoe UI", 12), text_color="#888888").pack(pady=(0, 10))
 
         scroll = ctk.CTkScrollableFrame(dialog, fg_color="transparent")
         scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
@@ -92,7 +92,7 @@ class BackupsMixin:
         ctk.CTkLabel(
             header,
             text=f"💾 {t('backup_manager')}",
-            font=("Arial", 18, "bold")
+            font=("Segoe UI", 18, "bold")
         ).pack(side="left")
         
         # Jetzt Backup erstellen Button
@@ -122,16 +122,16 @@ class BackupsMixin:
         ctk.CTkLabel(
             info_frame,
             text=status_text,
-            font=("Arial", 11)
+            font=("Segoe UI", 11)
         ).pack(pady=8)
         
         # Backup-Liste
         list_header = ctk.CTkFrame(dialog, fg_color="transparent")
         list_header.pack(fill="x", padx=15)
         
-        ctk.CTkLabel(list_header, text=t("backup_date"), font=("Arial", 12, "bold"), width=180).pack(side="left")
-        ctk.CTkLabel(list_header, text=t("backup_size"), font=("Arial", 12, "bold"), width=100).pack(side="left")
-        ctk.CTkLabel(list_header, text="Dateiname", font=("Arial", 12, "bold")).pack(side="left", padx=10)
+        ctk.CTkLabel(list_header, text=t("backup_date"), font=("Segoe UI", 12, "bold"), width=180).pack(side="left")
+        ctk.CTkLabel(list_header, text=t("backup_size"), font=("Segoe UI", 12, "bold"), width=100).pack(side="left")
+        ctk.CTkLabel(list_header, text="Dateiname", font=("Segoe UI", 12, "bold")).pack(side="left", padx=10)
         
         # Scrollbare Liste
         backup_list_frame = ctk.CTkScrollableFrame(dialog)
@@ -148,7 +148,7 @@ class BackupsMixin:
                 ctk.CTkLabel(
                     backup_list_frame,
                     text=f"📭 {t('backup_no_backups')}",
-                    font=("Arial", 14),
+                    font=("Segoe UI", 14),
                     text_color="gray"
                 ).pack(pady=50)
                 return
@@ -227,7 +227,7 @@ class BackupsMixin:
             ctk.CTkLabel(
                 backup_list_frame,
                 text=f"📭 {t('backup_no_backups')}",
-                font=("Arial", 14),
+                font=("Segoe UI", 14),
                 text_color="gray"
             ).pack(pady=50)
             return

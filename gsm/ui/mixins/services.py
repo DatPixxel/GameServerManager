@@ -293,11 +293,11 @@ class TeamSpeakServicesMixin:
         dialog.title("Chat & Stream Manager")
         dialog.geometry("760x460")
 
-        ctk.CTkLabel(dialog, text="💬 Chat + Stream", font=("Arial", 24, "bold"), text_color="#00d4ff").pack(pady=(18, 8))
+        ctk.CTkLabel(dialog, text="💬 Chat + Stream", font=("Segoe UI", 24, "bold"), text_color="#4c9aff").pack(pady=(18, 8))
         ctk.CTkLabel(
             dialog,
             text="Textchat + Dual Screen/Game-Stream (Chrome/Edge) über Tailscale",
-            font=("Arial", 13),
+            font=("Segoe UI", 13),
             text_color="#aaaaaa"
         ).pack(pady=(0, 14))
 
@@ -308,11 +308,11 @@ class TeamSpeakServicesMixin:
         ts_status_var = ctk.StringVar(value="TeamSpeak: wird geladen...")
         url_var = ctk.StringVar(value="")
 
-        chat_status_lbl = ctk.CTkLabel(status_frame, textvariable=chat_status_var, font=("Arial", 15, "bold"))
+        chat_status_lbl = ctk.CTkLabel(status_frame, textvariable=chat_status_var, font=("Segoe UI", 15, "bold"))
         chat_status_lbl.pack(anchor="w", padx=16, pady=(12, 4))
-        ts_status_lbl = ctk.CTkLabel(status_frame, textvariable=ts_status_var, font=("Arial", 14, "bold"))
+        ts_status_lbl = ctk.CTkLabel(status_frame, textvariable=ts_status_var, font=("Segoe UI", 14, "bold"))
         ts_status_lbl.pack(anchor="w", padx=16, pady=(0, 4))
-        ctk.CTkLabel(status_frame, textvariable=url_var, font=("Consolas", 13), text_color="#00d4ff").pack(anchor="w", padx=16, pady=(0, 12))
+        ctk.CTkLabel(status_frame, textvariable=url_var, font=("Consolas", 13), text_color="#4c9aff").pack(anchor="w", padx=16, pady=(0, 12))
 
         btns = ctk.CTkFrame(dialog, fg_color="transparent")
         btns.pack(fill="x", padx=20, pady=8)
@@ -350,7 +350,7 @@ class TeamSpeakServicesMixin:
         ctk.CTkLabel(
             dialog,
             text="Hinweis: Chat-Nachrichten werden aktuell nur im RAM gehalten (beim Neustart gelöscht).",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="#888888"
         ).pack(anchor="w", padx=24, pady=(12, 4))
 
@@ -365,21 +365,21 @@ class TeamSpeakServicesMixin:
         cfg = self.get_teamspeak3_config()
 
         title_var = ctk.StringVar(value=f"🎙️ {self.get_teamspeak_runtime_label()} Server")
-        ctk.CTkLabel(dialog, textvariable=title_var, font=("Arial", 24, "bold"), text_color="#00d4ff").pack(pady=(16, 10))
+        ctk.CTkLabel(dialog, textvariable=title_var, font=("Segoe UI", 24, "bold"), text_color="#4c9aff").pack(pady=(16, 10))
 
         top = ctk.CTkFrame(dialog, fg_color="#1e1e2e")
         top.pack(fill="x", padx=20, pady=(0, 10))
 
-        ctk.CTkLabel(top, text="Server-Typ", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(12, 4))
+        ctk.CTkLabel(top, text="Server-Typ", font=("Segoe UI", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(12, 4))
         type_var = ctk.StringVar(value="TS6" if cfg.get("server_type") == "ts6" else "TS3")
         type_combo = ctk.CTkComboBox(top, values=["TS3", "TS6"], variable=type_var, width=180)
         type_combo.pack(anchor="w", padx=16, pady=(0, 8))
 
-        ctk.CTkLabel(top, text="Basis-Pfad", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
+        ctk.CTkLabel(top, text="Basis-Pfad", font=("Segoe UI", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
         path_var = ctk.StringVar(value=cfg.get("base_path", ""))
         ctk.CTkEntry(top, textvariable=path_var, height=34).pack(fill="x", padx=16, pady=(0, 8))
 
-        ctk.CTkLabel(top, text="Exe-Datei (optional)", font=("Arial", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
+        ctk.CTkLabel(top, text="Exe-Datei (optional)", font=("Segoe UI", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(0, 4))
         exe_var = ctk.StringVar(value=cfg.get("exe_name", ""))
         ctk.CTkEntry(top, textvariable=exe_var, height=34).pack(fill="x", padx=16, pady=(0, 8))
 
@@ -387,7 +387,7 @@ class TeamSpeakServicesMixin:
         ctk.CTkLabel(top, textvariable=hint_var, font=("Consolas", 12), text_color="#7ec8ff").pack(anchor="w", padx=16, pady=(0, 8))
 
         status_var = ctk.StringVar(value="Status wird geladen...")
-        status_lbl = ctk.CTkLabel(top, textvariable=status_var, font=("Arial", 15, "bold"))
+        status_lbl = ctk.CTkLabel(top, textvariable=status_var, font=("Segoe UI", 15, "bold"))
         status_lbl.pack(anchor="w", padx=16, pady=(0, 12))
 
         btns = ctk.CTkFrame(dialog, fg_color="transparent")

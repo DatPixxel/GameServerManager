@@ -63,7 +63,7 @@ class SetupWizard(ctk.CTkToplevel):
         self.header = ctk.CTkLabel(
             self.container,
             text="🎮 Willkommen!",
-            font=("Arial", 28, "bold")
+            font=("Segoe UI", 28, "bold")
         )
         self.header.pack(pady=10)
         
@@ -103,12 +103,12 @@ class SetupWizard(ctk.CTkToplevel):
         steps = ["Willkommen", "Ordner", "Sprache", "Passwort", "Fertig"]
         
         for i, step_name in enumerate(steps):
-            color = "#00d4ff" if i <= self.current_step else "gray"
+            color = "#4c9aff" if i <= self.current_step else "gray"
             ctk.CTkLabel(
                 self.progress_frame,
                 text=f"● {step_name}" if i == self.current_step else "●",
                 text_color=color,
-                font=("Arial", 11)
+                font=("Segoe UI", 11)
             ).pack(side="left", padx=8)
     
     def clear_content(self):
@@ -146,7 +146,7 @@ class SetupWizard(ctk.CTkToplevel):
         ctk.CTkLabel(
             self.content_frame,
             text="Willkommen beim Game Server Manager Pro!",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         features_text = """
@@ -163,7 +163,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             self.content_frame,
             text=features_text,
-            font=("Arial", 14),
+            font=("Segoe UI", 14),
             justify="left"
         ).pack(pady=10)
         
@@ -177,13 +177,13 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             self.content_frame,
             text="Wo sollen Server, Backups & Configs gespeichert werden?",
-            font=("Arial", 16)
+            font=("Segoe UI", 16)
         ).pack(pady=10)
         
         ctk.CTkLabel(
             self.content_frame,
             text="💡 Wähle einen Ordner mit genügend Speicherplatz (20-100 GB pro Spiel)",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=5)
         
@@ -200,7 +200,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             textvariable=self.path_var,
             width=420,
             height=40,
-            font=("Arial", 13)
+            font=("Segoe UI", 13)
         )
         self.path_entry.pack(side="left", padx=(0, 10))
         
@@ -219,7 +219,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             info_frame,
             text="📋 Folgende Unterordner werden erstellt:",
-            font=("Arial", 12, "bold")
+            font=("Segoe UI", 12, "bold")
         ).pack(anchor="w", padx=15, pady=(10, 5))
         
         # Alle Ordner in einer Zeile
@@ -227,7 +227,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             info_frame,
             text=folders_text,
-            font=("Arial", 11),
+            font=("Segoe UI", 11),
             text_color="gray"
         ).pack(anchor="w", padx=15, pady=(0, 10))
         
@@ -236,7 +236,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             self.content_frame,
             text="",
             text_color="red",
-            font=("Arial", 12)
+            font=("Segoe UI", 12)
         )
         self.folder_error.pack(pady=10)
     
@@ -260,7 +260,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             self.content_frame,
             text="Wähle deine Sprache\nSelect your language",
-            font=("Arial", 16)
+            font=("Segoe UI", 16)
         ).pack(pady=30)
         
         self.language_var = ctk.StringVar(value="de")
@@ -273,7 +273,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             text="🇩🇪  Deutsch",
             variable=self.language_var,
             value="de",
-            font=("Arial", 18)
+            font=("Segoe UI", 18)
         )
         de_btn.pack(pady=15)
         
@@ -282,7 +282,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             text="🇬🇧  English",
             variable=self.language_var,
             value="en",
-            font=("Arial", 18)
+            font=("Segoe UI", 18)
         )
         en_btn.pack(pady=15)
     
@@ -298,7 +298,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             self.content_frame,
             text="Setze ein Passwort für das Web-Interface.\n"
                  "Damit kannst du den Server auch von anderen Geräten steuern.",
-            font=("Arial", 14)
+            font=("Segoe UI", 14)
         ).pack(pady=20)
         
         self.password_var = ctk.StringVar()
@@ -309,7 +309,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             show="*",
             width=300,
             height=45,
-            font=("Arial", 14)
+            font=("Segoe UI", 14)
         )
         self.password_entry.pack(pady=10)
         
@@ -321,7 +321,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             show="*",
             width=300,
             height=45,
-            font=("Arial", 14)
+            font=("Segoe UI", 14)
         )
         self.password_confirm_entry.pack(pady=10)
         
@@ -329,7 +329,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             self.content_frame,
             text="",
             text_color="red",
-            font=("Arial", 12)
+            font=("Segoe UI", 12)
         )
         self.password_error.pack(pady=10)
         
@@ -337,7 +337,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
             self.content_frame,
             text="💡 Das Web-Interface erreichst du unter:\n"
                  "http://localhost:5001 oder über Tailscale",
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
             text_color="gray"
         ).pack(pady=20)
     
@@ -353,7 +353,7 @@ Dieses Tool hilft dir, deine Game-Server zu verwalten.
         ctk.CTkLabel(
             self.content_frame,
             text="Alles eingerichtet!",
-            font=("Arial", 20, "bold")
+            font=("Segoe UI", 20, "bold")
         ).pack(pady=20)
         
         summary = f"""
@@ -370,7 +370,7 @@ Viel Spaß beim Spielen! 🎮
         ctk.CTkLabel(
             self.content_frame,
             text=summary,
-            font=("Arial", 14),
+            font=("Segoe UI", 14),
             justify="left"
         ).pack(pady=20)
     
