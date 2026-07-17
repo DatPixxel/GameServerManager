@@ -108,11 +108,11 @@ class RconLogMixin:
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Linke Seite: Karte
-        left_frame = ctk.CTkFrame(main_frame, fg_color="#1a1a2e")
+        left_frame = ctk.CTkFrame(main_frame, fg_color="#161b22")
         left_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
         
         # Map Header
-        map_header = ctk.CTkFrame(left_frame, fg_color="#252545")
+        map_header = ctk.CTkFrame(left_frame, fg_color="#1c222b")
         map_header.pack(fill="x", padx=5, pady=5)
         
         ctk.CTkLabel(map_header, text=f"🗺️ {ARK_MAP_DATA.get(current_map, {}).get('name', current_map)}",
@@ -200,14 +200,14 @@ class RconLogMixin:
         ).pack(side="right", padx=5, pady=5)
         
         # Karten-Canvas
-        canvas_frame = ctk.CTkFrame(left_frame, fg_color="#0a0a15")
+        canvas_frame = ctk.CTkFrame(left_frame, fg_color="#0b0e13")
         canvas_frame.pack(fill="both", expand=True)
         
-        map_canvas = tk.Canvas(canvas_frame, bg="#0a0a15", highlightthickness=0)
+        map_canvas = tk.Canvas(canvas_frame, bg="#0b0e13", highlightthickness=0)
         map_canvas.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Rechte Seite: Controls
-        right_frame = ctk.CTkFrame(main_frame, fg_color="#1a1a2e", width=300)
+        right_frame = ctk.CTkFrame(main_frame, fg_color="#161b22", width=300)
         right_frame.pack(side="right", fill="y", padx=(5, 0))
         right_frame.pack_propagate(False)
         
@@ -308,7 +308,7 @@ class RconLogMixin:
             if online_players:
                 for player in online_players:
                     name = player.get("name", "?")
-                    pf = ctk.CTkFrame(player_list_frame, fg_color="#2a2a4a")
+                    pf = ctk.CTkFrame(player_list_frame, fg_color="#1c222b")
                     pf.pack(fill="x", pady=2)
                     ctk.CTkLabel(pf, text=f"🟢 {name}", font=("Segoe UI", 11)).pack(side="left", padx=10, pady=5)
             else:
@@ -457,10 +457,10 @@ class RconLogMixin:
             map_canvas.delete("all")
             
             # Dunkler Hintergrund
-            map_canvas.create_rectangle(0, 0, w, h, fill="#0a0a15", outline="")
+            map_canvas.create_rectangle(0, 0, w, h, fill="#0b0e13", outline="")
             
             # Grid
-            grid_color = "#1a1a2a"
+            grid_color = "#161b22"
             for i in range(0, w, 50):
                 map_canvas.create_line(i, 0, i, h, fill=grid_color)
             for i in range(0, h, 50):

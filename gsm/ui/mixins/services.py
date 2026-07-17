@@ -301,7 +301,7 @@ class TeamSpeakServicesMixin:
             text_color="#aaaaaa"
         ).pack(pady=(0, 14))
 
-        status_frame = ctk.CTkFrame(dialog, fg_color="#1e1e2e")
+        status_frame = ctk.CTkFrame(dialog, fg_color="#161b22")
         status_frame.pack(fill="x", padx=20, pady=8)
 
         chat_status_var = ctk.StringVar(value="Chat: wird geladen...")
@@ -367,7 +367,7 @@ class TeamSpeakServicesMixin:
         title_var = ctk.StringVar(value=f"🎙️ {self.get_teamspeak_runtime_label()} Server")
         ctk.CTkLabel(dialog, textvariable=title_var, font=("Segoe UI", 24, "bold"), text_color="#4c9aff").pack(pady=(16, 10))
 
-        top = ctk.CTkFrame(dialog, fg_color="#1e1e2e")
+        top = ctk.CTkFrame(dialog, fg_color="#161b22")
         top.pack(fill="x", padx=20, pady=(0, 10))
 
         ctk.CTkLabel(top, text="Server-Typ", font=("Segoe UI", 12), text_color="#aaaaaa").pack(anchor="w", padx=16, pady=(12, 4))

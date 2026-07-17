@@ -56,8 +56,8 @@ class BackupsMixin:
                 text=f"{icon}  {name}",
                 anchor="w",
                 height=40,
-                fg_color="#1e1e2e",
-                hover_color="#2a2a3a",
+                fg_color="#161b22",
+                hover_color="#2a323d",
                 command=lambda sid=server_id: _choose(sid),
             ).pack(fill="x", pady=4)
 

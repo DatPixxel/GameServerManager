@@ -68,6 +68,7 @@ from gsm.ui.mixins.install import InstallUpdateMixin
 from gsm.ui.mixins.game_ops import GameServerOpsMixin
 from gsm.ui.mixins.settings import SettingsMixin
 from gsm.ui.mixins.rcon import RconLogMixin
+from gsm.ui import theme as th
 
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -246,7 +247,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.updater = AutoUpdater(self)
         
         # ============ HEADER ============
-        header = ctk.CTkFrame(self, height=55, corner_radius=0, fg_color="#0d0d15")
+        header = ctk.CTkFrame(self, height=55, corner_radius=0, fg_color="#0e1116")
         header.pack(fill="x")
         header.pack_propagate(False)
         
@@ -276,8 +277,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             font=("Segoe UI", 13),
             width=140,
             height=35,
-            fg_color="#1a1a2e",
-            hover_color="#2a2a3e",
+            fg_color="#161b22",
+            hover_color="#1c222b",
             command=self.open_web_interface
         ).pack(side="left", padx=3)
         
@@ -325,13 +326,13 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             width=110,
             height=35,
             font=("Segoe UI", 13),
-            fg_color="#3a3a4a",
-            hover_color="#4a4a5a",
+            fg_color="#232b36",
+            hover_color="#2f3947",
             command=self.show_app_settings
         ).pack(side="right", padx=3)
         
         # ============ MAIN CONTAINER ============
-        main = ctk.CTkFrame(self, fg_color="#0d0d15")
+        main = ctk.CTkFrame(self, fg_color="#0e1116")
         main.pack(fill="both", expand=True, padx=0, pady=0)
         
         # Sidebar Container (für Resize)
@@ -343,7 +344,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.sidebar = ctk.CTkFrame(
             self.sidebar_container, 
             width=self.sidebar_width,
-            fg_color="#12121a",
+            fg_color="#0e1116",
             corner_radius=0
         )
         self.sidebar.pack(side="left", fill="y")
@@ -353,7 +354,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.resize_handle = ctk.CTkFrame(
             self.sidebar_container, 
             width=4, 
-            fg_color="#2a2a3a",
+            fg_color="#2a323d",
             cursor="sb_h_double_arrow"
         )
         self.resize_handle.pack(side="left", fill="y", padx=(0, 0))
@@ -362,7 +363,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.resize_handle.bind("<Button-1>", self._start_resize)
         self.resize_handle.bind("<B1-Motion>", self._do_resize)
         self.resize_handle.bind("<Enter>", lambda e: self.resize_handle.configure(fg_color="#4c9aff"))
-        self.resize_handle.bind("<Leave>", lambda e: self.resize_handle.configure(fg_color="#2a2a3a"))
+        self.resize_handle.bind("<Leave>", lambda e: self.resize_handle.configure(fg_color="#2a323d"))
         
         # ============ SIDEBAR NAVIGATION ============
         
@@ -387,7 +388,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ).pack(side="left", padx=8)
         
         # Trennlinie
-        ctk.CTkFrame(self.sidebar, height=1, fg_color="#2a2a3a").pack(fill="x", padx=10, pady=5)
+        ctk.CTkFrame(self.sidebar, height=1, fg_color="#2a323d").pack(fill="x", padx=10, pady=5)
         
         # --- MENU Section ---
         ctk.CTkLabel(
@@ -407,7 +408,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.create_sidebar_nav()
         
         # Trennlinie
-        ctk.CTkFrame(self.sidebar, height=1, fg_color="#2a2a3a").pack(fill="x", padx=10, pady=10)
+        ctk.CTkFrame(self.sidebar, height=1, fg_color="#2a323d").pack(fill="x", padx=10, pady=10)
         
         # --- SERVERS Section ---
         ctk.CTkLabel(
@@ -435,8 +436,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self.server_list_frame = ctk.CTkScrollableFrame(
             self.sidebar,
             fg_color="transparent",
-            scrollbar_button_color="#3a3a4a",
-            scrollbar_button_hover_color="#4a4a5a"
+            scrollbar_button_color="#232b36",
+            scrollbar_button_hover_color="#2f3947"
         )
         self.server_list_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
@@ -451,7 +452,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # ============ END SIDEBAR NAVIGATION ============
         
         # Content Area
-        self.content_area = ctk.CTkFrame(main, fg_color="#1a1a2e")
+        self.content_area = ctk.CTkFrame(main, fg_color="#161b22")
         self.content_area.pack(side="right", fill="both", expand=True)
         
         # Server-Liste laden
@@ -486,7 +487,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 height=42,
                 anchor="w",
                 fg_color="#1e3a5f" if is_active else "transparent",
-                hover_color="#2a2a3e",
+                hover_color="#1c222b",
                 text_color="#ffffff" if is_active else "#aaaaaa",
                 border_width=2 if is_active else 0,
                 border_color="#4c9aff",
@@ -515,7 +516,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             widget.destroy()
         
         # Header
-        header = ctk.CTkFrame(self.content_area, fg_color="#12121a", height=50)
+        header = ctk.CTkFrame(self.content_area, fg_color="#0e1116", height=50)
         header.pack(fill="x")
         header.pack_propagate(False)
         
@@ -563,7 +564,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             icon = game_info.get("icon", "🎮")
             
             # Server Row
-            row = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=10)
+            row = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=10)
             row.pack(fill="x", pady=5)
             
             row_inner = ctk.CTkFrame(row, fg_color="transparent")
@@ -614,8 +615,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 width=90,
                 height=32,
                 font=("Segoe UI", 12),
-                fg_color="#3a3a4a",
-                hover_color="#4a4a5a",
+                fg_color="#232b36",
+                hover_color="#2f3947",
                 command=lambda sid=server_id: self.select_server(sid)
             ).pack(side="left", padx=3)
             
@@ -677,7 +678,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             font=("Segoe UI", 11),
             height=32,
             fg_color="transparent",
-            hover_color="#2a2a3a",
+            hover_color="#2a323d",
             text_color="#888888",
             anchor="w",
             command=command
@@ -708,7 +709,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             widget.destroy()
         
         # Header
-        header_frame = ctk.CTkFrame(self.content_area, fg_color="#1a1a2e", height=60)
+        header_frame = ctk.CTkFrame(self.content_area, fg_color="#161b22", height=60)
         header_frame.pack(fill="x")
         header_frame.pack_propagate(False)
         
@@ -748,9 +749,9 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         card = ctk.CTkFrame(
             parent,
             corner_radius=12,
-            fg_color="#1e1e2e",
+            fg_color="#161b22",
             border_width=1,
-            border_color="#2a2a3a"
+            border_color="#2a323d"
         )
         card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
         
@@ -802,7 +803,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             widget.destroy()
         
         # Header
-        header_frame = ctk.CTkFrame(self.content_area, fg_color="#1a1a2e", height=60)
+        header_frame = ctk.CTkFrame(self.content_area, fg_color="#161b22", height=60)
         header_frame.pack(fill="x")
         header_frame.pack_propagate(False)
         
@@ -851,7 +852,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                                  disk_percent/100, "#ffaa00" if disk_percent < 90 else "#ff4444", 2)
         
         # Server Stats Section
-        server_frame = ctk.CTkFrame(content, fg_color="#1e1e2e", corner_radius=12)
+        server_frame = ctk.CTkFrame(content, fg_color="#161b22", corner_radius=12)
         server_frame.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=20)
         
         ctk.CTkLabel(
@@ -871,7 +872,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
     
     def create_stat_card(self, parent, title, value, progress, color, col):
         """Erstellt eine Statistik-Karte"""
-        card = ctk.CTkFrame(parent, fg_color="#1e1e2e", corner_radius=12)
+        card = ctk.CTkFrame(parent, fg_color="#161b22", corner_radius=12)
         card.grid(row=0, column=col, padx=10, pady=10, sticky="nsew")
         
         ctk.CTkLabel(
@@ -894,7 +895,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
     
     def create_server_resource_row(self, parent, name, resources):
         """Erstellt eine Zeile für Server-Ressourcen"""
-        row = ctk.CTkFrame(parent, fg_color="#2a2a3a", corner_radius=8)
+        row = ctk.CTkFrame(parent, fg_color="#2a323d", corner_radius=8)
         row.pack(fill="x", padx=15, pady=3)
         
         content = ctk.CTkFrame(row, fg_color="transparent")
@@ -1001,7 +1002,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             self.server_list_frame, 
             cursor="hand2",
             corner_radius=8,
-            fg_color=("#3a3a4a", "#252535")
+            fg_color=("#232b36", "#1c222b")
         )
         header_frame.pack(fill="x", pady=(8, 2), padx=2)
         
@@ -1029,7 +1030,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ).pack(side="left", padx=(5, 0))
         
         # Server-Anzahl Badge
-        badge_color = "#2d5a2d" if running_count > 0 else "#4a4a5a"
+        badge_color = "#2d5a2d" if running_count > 0 else "#2f3947"
         badge_text_color = "#3fb771" if running_count > 0 else "#888888"
         
         badge = ctk.CTkFrame(header_content, fg_color=badge_color, corner_radius=10)
@@ -1070,14 +1071,14 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         is_running = instance and instance.is_running() if instance else False
         
         # Frame für den Server mit Status-abhängiger Farbe
-        border_color = "#3fb771" if is_running else "#3a3a4a"
+        border_color = "#3fb771" if is_running else "#232b36"
         frame = ctk.CTkFrame(
             self.server_list_frame, 
             cursor="hand2",
             corner_radius=8,
             border_width=1,
             border_color=border_color,
-            fg_color=("#2a2a3a", "#1e1e2e")
+            fg_color=("#2a323d", "#161b22")
         )
         if indent:
             frame.pack(fill="x", pady=3, padx=(15, 2))
@@ -1213,7 +1214,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             return
         
         # Dashboard Header - kompakt
-        header_frame = ctk.CTkFrame(self.content_area, fg_color="#12121a", height=45)
+        header_frame = ctk.CTkFrame(self.content_area, fg_color="#0e1116", height=45)
         header_frame.pack(fill="x")
         header_frame.pack_propagate(False)
         
@@ -1232,8 +1233,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             width=28,
             height=28,
             font=("Segoe UI", 11),
-            fg_color="#2a2a3a",
-            hover_color="#3a3a4a",
+            fg_color="#2a323d",
+            hover_color="#232b36",
             command=self.show_dashboard
         ).pack(side="left", padx=3, pady=8)
         
@@ -1270,7 +1271,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ).pack()
         
         # Total Badge
-        total_badge = ctk.CTkFrame(stats_frame, fg_color="#2a2a3a", corner_radius=8)
+        total_badge = ctk.CTkFrame(stats_frame, fg_color="#2a323d", corner_radius=8)
         total_badge.pack(side="left", padx=3)
         ctk.CTkLabel(
             total_badge,
@@ -1329,136 +1330,124 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # Haupt-Karte
         card = ctk.CTkFrame(
             parent,
-            corner_radius=10,
-            fg_color="#1e1e2e",
+            corner_radius=th.RADIUS_S,
+            fg_color=th.SURFACE,
             border_width=1,
-            border_color="#3fb771" if is_running else "#2a2a3a"
+            border_color=th.BORDER
         )
-        card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
-        
-        # === Header (kompakt) ===
-        header_bg = "#1a3a1a" if is_running else "#3a1a1a"
-        
-        card_header = ctk.CTkFrame(card, fg_color=header_bg, corner_radius=8)
-        card_header.pack(fill="x", padx=4, pady=4)
-        
-        header_content = ctk.CTkFrame(card_header, fg_color="transparent")
-        header_content.pack(fill="x", padx=10, pady=6)
-        
-        # Game + Status
+        card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
+
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="both", expand=True, padx=14, pady=14)
+
+        # === Kopf: Icon-Kachel + Name/Meta + Status-Pill ===
+        head = ctk.CTkFrame(inner, fg_color="transparent")
+        head.pack(fill="x")
+
         ctk.CTkLabel(
-            header_content,
-            text=f"{icon} {game[:15]}",
-            font=("Segoe UI", 12),
-            text_color="#888888"
+            head, text=icon, width=42, height=42,
+            font=(th.FONT, 21), fg_color=th.SURFACE_3, corner_radius=11
         ).pack(side="left")
-        
-        # Status Text
-        status_text = "●" if is_running else "○"
-        status_color = "#3fb771" if is_running else "#ff4444"
+
+        # Status-Pill (rechts)
+        if is_running:
+            pill_text, pill_fg, pill_bg = "  ● Online  ", th.OK, th.OK_BG
+        else:
+            pill_text, pill_fg, pill_bg = "  ● Offline  ", th.CRIT, th.CRIT_BG
         ctk.CTkLabel(
-            header_content,
-            text=status_text,
-            font=("Segoe UI", 12),
-            text_color=status_color
-        ).pack(side="right")
-        
-        # === Server Name ===
+            head, text=pill_text, font=(th.FONT, 11, "bold"),
+            text_color=pill_fg, fg_color=pill_bg, corner_radius=11, height=22
+        ).pack(side="right", pady=(2, 0))
+
+        # Name + Meta (zwischen Kachel und Pill)
+        mid = ctk.CTkFrame(head, fg_color="transparent")
+        mid.pack(side="left", fill="x", expand=True, padx=(12, 8))
+
         name = server_config.get("name", "Server")
-        if len(name) > 20:
-            name = name[:18] + "..."
+        if len(name) > 22:
+            name = name[:20] + "…"
         ctk.CTkLabel(
-            card,
-            text=name,
-            font=("Segoe UI", 13, "bold"),
-            anchor="w"
-        ).pack(fill="x", padx=12, pady=(6, 3))
-        
-        # === Quick Info ===
+            mid, text=name, font=(th.FONT, 15, "bold"),
+            text_color=th.TEXT, anchor="w", justify="left"
+        ).pack(fill="x")
+
         port = server_config.get("port", "?")
         map_name = server_config.get("map_name", server_config.get("map", ""))
-        if map_name and len(map_name) > 12:
-            map_name = map_name[:10] + ".."
-        
-        info_text = f":{port}"
+        meta = f":{port}"
         if map_name:
-            info_text += f"  🗺️ {map_name}"
-        
+            if len(map_name) > 14:
+                map_name = map_name[:12] + "…"
+            meta += f"  ·  {map_name}"
         ctk.CTkLabel(
-            card,
-            text=info_text,
-            font=("Segoe UI", 12),
-            text_color="#666666",
-            anchor="w"
-        ).pack(fill="x", padx=12, pady=(0, 5))
-        
-        # === Stats (wenn online) ===
+            mid, text=meta, font=(th.MONO, 11),
+            text_color=th.TEXT_FAINT, anchor="w", justify="left"
+        ).pack(fill="x")
+
+        # === Ressourcen-Balken (nur wenn online) ===
         if is_running:
-            stats_frame = ctk.CTkFrame(card, fg_color="#151520", corner_radius=6)
-            stats_frame.pack(fill="x", padx=8, pady=(0, 5))
-            
-            stats_inner = ctk.CTkFrame(stats_frame, fg_color="transparent")
-            stats_inner.pack(fill="x", padx=8, pady=5)
-            
             cpu_value = resources.get("cpu", 0)
             ram_gb = resources.get("ram_gb", 0)
-            
-            cpu_color = "#3fb771" if cpu_value < 50 else "#ffaa00" if cpu_value < 80 else "#ff4444"
-            
-            ctk.CTkLabel(
-                stats_inner,
-                text=f"CPU {cpu_value:.0f}%",
-                font=("Segoe UI", 12),
-                text_color=cpu_color
-            ).pack(side="left")
-            
-            ctk.CTkLabel(
-                stats_inner,
-                text=f"RAM {ram_gb:.1f}G",
-                font=("Segoe UI", 12),
-                text_color="#4c9aff"
-            ).pack(side="right")
-        
-        # === Action Buttons (kompakt) ===
-        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=8, pady=(3, 8))
-        
-        # Settings Button
-        ctk.CTkButton(
-            btn_frame,
-            text="⚙️",
-            width=32,
-            height=26,
-            font=("Segoe UI", 12),
-            fg_color="#3a3a4a",
-            hover_color="#4a4a5a",
-            command=lambda sid=server_id: self.select_server(sid)
-        ).pack(side="left", padx=2)
-        
-        # Start/Stop Button
+            ram_percent = resources.get("ram_percent", 0)
+            cpu_color = th.OK if cpu_value < 50 else th.WARN if cpu_value < 80 else th.CRIT
+
+            bars = ctk.CTkFrame(inner, fg_color="transparent")
+            bars.pack(fill="x", pady=(14, 0))
+            self._create_resource_bar(bars, "CPU", cpu_value / 100.0, f"{cpu_value:.0f}%", cpu_color)
+            self._create_resource_bar(bars, "RAM", ram_percent / 100.0, f"{ram_gb:.1f} GB", th.ACCENT)
+
+        # === Aktionen ===
+        actions = ctk.CTkFrame(inner, fg_color="transparent")
+        actions.pack(fill="x", pady=(16, 0))
+        actions.grid_columnconfigure((0, 1, 2), weight=1, uniform="act")
+
         if is_running:
             ctk.CTkButton(
-                btn_frame,
-                text="⏹ Stop",
-                width=55,
-                height=26,
-                font=("Segoe UI", 12),
-                fg_color="#6a2a2a",
-                hover_color="#8a3a3a",
+                actions, text="⏹  Stop", height=32, font=(th.FONT, 12, "bold"),
+                fg_color="transparent", border_width=1, border_color=th.BORDER,
+                text_color=th.TEXT_MUTED, hover_color=th.CRIT_BG,
                 command=lambda sid=server_id: self.quick_stop_server(sid)
-            ).pack(side="right", padx=2)
+            ).grid(row=0, column=0, padx=(0, 6), sticky="ew")
         else:
             ctk.CTkButton(
-                btn_frame,
-                text="▶ Start",
-                width=55,
-                height=26,
-                font=("Segoe UI", 12),
-                fg_color="#2a5a2a",
-                hover_color="#3a7a3a",
+                actions, text="▶  Start", height=32, font=(th.FONT, 12, "bold"),
+                fg_color=th.ACCENT, hover_color=th.ACCENT_HOVER, text_color="#ffffff",
                 command=lambda sid=server_id: self.quick_start_server(sid)
-            ).pack(side="right", padx=2)
-    
+            ).grid(row=0, column=0, padx=(0, 6), sticky="ew")
+
+        ctk.CTkButton(
+            actions, text="⚙  Verwalten", height=32, font=(th.FONT, 12),
+            fg_color=th.SURFACE_3, hover_color=th.HOVER, text_color=th.TEXT,
+            command=lambda sid=server_id: self.select_server(sid)
+        ).grid(row=0, column=1, padx=6, sticky="ew")
+
+        ctk.CTkButton(
+            actions, text="💾  Backups", height=32, font=(th.FONT, 12),
+            fg_color=th.SURFACE_3, hover_color=th.HOVER, text_color=th.TEXT,
+            command=lambda sid=server_id: self.show_backup_manager(sid)
+        ).grid(row=0, column=2, padx=(6, 0), sticky="ew")
+
+    def _create_resource_bar(self, parent, label, fraction, value_text, color):
+        """Zeile mit Label, Fortschrittsbalken und Wert (für Server-Karten)."""
+        row = ctk.CTkFrame(parent, fg_color="transparent")
+        row.pack(fill="x", pady=3)
+        ctk.CTkLabel(
+            row, text=label, font=(th.MONO, 10), text_color=th.TEXT_FAINT,
+            width=38, anchor="w"
+        ).pack(side="left")
+        ctk.CTkLabel(
+            row, text=value_text, font=(th.MONO, 11), text_color=th.TEXT_MUTED,
+            width=58, anchor="e"
+        ).pack(side="right")
+        bar = ctk.CTkProgressBar(
+            row, height=6, corner_radius=999,
+            fg_color=th.SURFACE_3, progress_color=color
+        )
+        bar.pack(side="left", fill="x", expand=True, padx=8)
+        try:
+            bar.set(max(0.0, min(1.0, fraction)))
+        except Exception:
+            bar.set(0)
+
     def _create_info_row(self, parent, label, value):
         """Erstellt eine Info-Zeile in der Server-Karte"""
         row = ctk.CTkFrame(parent, fg_color="transparent")
@@ -1543,7 +1532,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         scroll.pack(fill="both", expand=True, padx=15, pady=10)
         
         # ============ HEADER CARD ============
-        header_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+        header_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
         header_card.pack(fill="x", pady=(0, 15))
         
         header_inner = ctk.CTkFrame(header_card, fg_color="transparent")
@@ -1613,7 +1602,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ).pack()
         
         # ============ ACTION BUTTONS ============
-        action_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+        action_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
         action_card.pack(fill="x", pady=(0, 15))
         
         action_inner = ctk.CTkFrame(action_card, fg_color="transparent")
@@ -1662,7 +1651,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                                lambda: self.delete_server(server_id), small=True, width=36)
         
         # ============ STATS CARDS ============
-        stats_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+        stats_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
         stats_card.pack(fill="x", pady=(0, 15))
         
         stats_inner = ctk.CTkFrame(stats_card, fg_color="transparent")
@@ -1685,7 +1674,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         self._create_stat_card(stats_inner, 3, "🗺️", "Map", str(map_name))
         
         # ============ CONNECTION INFO ============
-        connect_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+        connect_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
         connect_card.pack(fill="x", pady=(0, 15))
         
         # Header
@@ -1699,7 +1688,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         ).pack(side="left")
         
         # Content
-        connect_content = ctk.CTkFrame(connect_card, fg_color="#252535", corner_radius=8)
+        connect_content = ctk.CTkFrame(connect_card, fg_color="#1c222b", corner_radius=8)
         connect_content.pack(fill="x", padx=15, pady=(5, 15))
         
         # IP-Adressen ermitteln
@@ -1763,7 +1752,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         
         # Mods Section (für ARK)
         if server_config.get("game") == "ARK: Survival Ascended":
-            mods_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+            mods_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
             mods_card.pack(fill="x", pady=(0, 15))
             
             # Header
@@ -1785,7 +1774,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ).pack(side="right")
             
             # Mods Content
-            mods_content = ctk.CTkFrame(mods_card, fg_color="#252535", corner_radius=8)
+            mods_content = ctk.CTkFrame(mods_card, fg_color="#1c222b", corner_radius=8)
             mods_content.pack(fill="x", padx=15, pady=(5, 10))
             
             if mods:
@@ -1843,7 +1832,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             ).pack(side="left", padx=5)
         
         # ============ FOLDERS SECTION ============
-        folders_card = ctk.CTkFrame(scroll, fg_color="#1e1e2e", corner_radius=12)
+        folders_card = ctk.CTkFrame(scroll, fg_color="#161b22", corner_radius=12)
         folders_card.pack(fill="x", pady=(0, 15))
         
         # Header
@@ -1865,8 +1854,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             folders_btns,
             text="📂 Server",
             command=lambda: self.open_server_folder(server_id),
-            fg_color="#3a3a4a",
-            hover_color="#4a4a5a",
+            fg_color="#232b36",
+            hover_color="#2f3947",
             width=80,
             height=30,
             font=("Segoe UI", 12)
@@ -1879,8 +1868,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 folders_btns,
                 text="⚙️ Config",
                 command=lambda: self.open_config_folder(server_id),
-                fg_color="#3a3a4a",
-                hover_color="#4a4a5a",
+                fg_color="#232b36",
+                hover_color="#2f3947",
                 width=80,
                 height=30,
                 font=("Segoe UI", 12)
@@ -1893,8 +1882,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 folders_btns,
                 text="💾 Saves",
                 command=lambda: self.open_save_folder(server_id),
-                fg_color="#3a3a4a",
-                hover_color="#4a4a5a",
+                fg_color="#232b36",
+                hover_color="#2f3947",
                 width=80,
                 height=30,
                 font=("Segoe UI", 12)
@@ -1905,8 +1894,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             folders_btns,
             text="📋 Logs",
             command=lambda: self.open_logs_folder(server_id),
-            fg_color="#3a3a4a",
-            hover_color="#4a4a5a",
+            fg_color="#232b36",
+            hover_color="#2f3947",
             width=70,
             height=30,
             font=("Segoe UI", 12)
@@ -2012,7 +2001,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                     mods_scroll.pack(fill="x", padx=15, pady=5)
                     
                     for mod_file in sorted(mod_files):
-                        mod_row = ctk.CTkFrame(mods_scroll, fg_color="#2a2a3e")
+                        mod_row = ctk.CTkFrame(mods_scroll, fg_color="#1c222b")
                         mod_row.pack(fill="x", pady=2)
                         
                         # Mod Name (ohne .jar)
@@ -2157,7 +2146,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                         values=options,
                         variable=selected_mod_var,
                         width=500,
-                        fg_color="#2a3554",
+                        fg_color="#1c222b",
                         button_color="#3d4f7a",
                         button_hover_color="#51679a"
                     ).pack(anchor="w", padx=20, pady=(0, 8))
@@ -2291,7 +2280,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # ============ END ENSHROUDED SECTION ============
         
         # Log Section - Farbige Console
-        log_frame = ctk.CTkFrame(scroll, fg_color="#1a1a2e")
+        log_frame = ctk.CTkFrame(scroll, fg_color="#161b22")
         log_frame.pack(fill="x", pady=10)
         
         # Log Header
@@ -2325,8 +2314,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             width=70,
             height=28,
             font=("Segoe UI", 12),
-            fg_color="#4a4a5a",
-            hover_color="#5a5a6a",
+            fg_color="#2f3947",
+            hover_color="#2f3947",
             command=lambda: self.clear_server_logs(server_id)
         ).pack(side="right")
         
@@ -2335,7 +2324,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             log_frame,
             height=250,
             font=("Consolas", 11),
-            fg_color="#0d0d15",
+            fg_color="#0e1116",
             text_color="#cccccc",
             corner_radius=8
         )
@@ -2414,7 +2403,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
     
     def _create_stat_card(self, parent, col, icon, title, value):
         """Erstellt eine kompakte Stat Card"""
-        card = ctk.CTkFrame(parent, fg_color="#252535", corner_radius=8)
+        card = ctk.CTkFrame(parent, fg_color="#1c222b", corner_radius=8)
         card.grid(row=0, column=col, padx=4, pady=4, sticky="nsew")
         
         content = ctk.CTkFrame(card, fg_color="transparent")
@@ -2464,8 +2453,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             width=200,
             height=34,
             font=("Segoe UI", 13),
-            fg_color="#1a1a2a",
-            border_color="#3a3a4a" if not highlight else "#4c9aff"
+            fg_color="#161b22",
+            border_color="#232b36" if not highlight else "#4c9aff"
         )
         entry.insert(0, value)
         entry.configure(state="readonly")
@@ -2478,8 +2467,8 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             width=38,
             height=34,
             font=("Segoe UI", 12),
-            fg_color="#3a3a4a",
-            hover_color="#4a4a5a",
+            fg_color="#232b36",
+            hover_color="#2f3947",
             command=lambda v=value: self.copy_to_clipboard(v)
         ).pack(side="left", padx=2)
         

@@ -734,7 +734,7 @@ class SettingsMixin:
                 ).pack(pady=20)
             else:
                 for cluster_id, cluster_info in clusters.items():
-                    frame = ctk.CTkFrame(cluster_list_frame, fg_color="#2a2a3e")
+                    frame = ctk.CTkFrame(cluster_list_frame, fg_color="#1c222b")
                     frame.pack(fill="x", pady=3)
                     
                     # Cluster-Name
@@ -742,7 +742,7 @@ class SettingsMixin:
                         frame,
                         text=f"🔗 {cluster_info.get('name', cluster_id)}",
                         fg_color="transparent",
-                        hover_color="#3a3a4e",
+                        hover_color="#232b36",
                         anchor="w",
                         command=lambda cid=cluster_id: select_cluster(cid)
                     )
@@ -799,7 +799,7 @@ class SettingsMixin:
             cluster_servers = cluster_info.get("servers", [])
             
             for server_id, server_config in ark_servers.items():
-                frame = ctk.CTkFrame(server_list_frame, fg_color="#2a2a3e")
+                frame = ctk.CTkFrame(server_list_frame, fg_color="#1c222b")
                 frame.pack(fill="x", pady=3)
                 
                 is_in_cluster = server_id in cluster_servers
