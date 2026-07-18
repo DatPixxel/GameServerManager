@@ -190,13 +190,22 @@ class ServerInstance:
             return False
     
     def log(self, message):
-        """Loggt eine Nachricht"""
+        """Loggt eine Nachricht (Konsolen-Ausgabe crash-sicher, auch unter cp1252)"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] [{self.config['name']}] {message}"
         self.log_messages.append(log_entry)
         if len(self.log_messages) > 100:
             self.log_messages = self.log_messages[-100:]
-        print(log_entry)
+        # Die eigentliche Anzeige läuft über self.log_messages (oben). Der print()
+        # ist nur Konsolen-Komfort und darf NIEMALS den Aufrufer (z. B. Server-Start)
+        # abschießen – unter Windows-cp1252 scheitert er sonst an Emojis.
+        try:
+            print(log_entry)
+        except Exception:
+            try:
+                print(log_entry.encode("ascii", "replace").decode("ascii"))
+            except Exception:
+                pass
     
     def get_exe_path(self):
         """Gibt den vollständigen Pfad zur Server-Exe zurück"""

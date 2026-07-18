@@ -3,7 +3,7 @@
 Aus game_server_manager.py ausgelagert, damit gsm-Module sie ohne Zirkelimport nutzen.
 """
 
-VERSION = "3.41"
+VERSION = "3.42"
 APP_NAME = "Game Server Manager Pro"
 
 # Netzwerk / SSL
