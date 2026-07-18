@@ -266,14 +266,14 @@
     const pill=!s.installed?'<span class="pill na"><i></i>Nicht installiert</span>':s.running?'<span class="pill ok"><i></i>Online</span>':'<span class="pill off"><i></i>Offline</span>';
     const cpuC=s.cpu<50?"ok":s.cpu<80?"warn":"crit";
     const bars=s.running?`<div class="bars">
-      <div class="bar"><span class="l">CPU</span><span class="track"><i class="${cpuC}" data-w="${s.cpu}"></i></span><span class="rv">${s.cpu}%</span></div>
-      <div class="bar"><span class="l">RAM</span><span class="track"><i class="ac" data-w="${s.ram_percent}"></i></span><span class="rv">${s.ram_gb} GB</span></div>
-    </div>`:`<div class="bars"><div class="bar"><span class="l">Status</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">—</span></div><div class="bar"><span class="l">Uptime</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">${esc(s.uptime)}</span></div></div>`;
+      <div class="bar"><span class="l">CPU</span><span class="track"><i class="${cpuC}" data-fill="cpu" data-w="${s.cpu}"></i></span><span class="rv" data-rv="cpu">${s.cpu}%</span></div>
+      <div class="bar"><span class="l">RAM</span><span class="track"><i class="ac" data-fill="ram" data-w="${s.ram_percent}"></i></span><span class="rv" data-rv="ram">${s.ram_gb} GB</span></div>
+    </div>`:`<div class="bars"><div class="bar"><span class="l">Status</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">—</span></div><div class="bar"><span class="l">Uptime</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv" data-rv="uptime">${esc(s.uptime)}</span></div></div>`;
     let mainBtn;
     if(!s.installed) mainBtn=`<button class="act pri" data-a="install" data-id="${s.id}">⬇ Installieren</button>`;
     else if(s.running) mainBtn=`<button class="act stop" data-a="stop" data-id="${s.id}">■ Stop</button>`;
     else mainBtn=`<button class="act pri" data-a="start" data-id="${s.id}">▶ Start</button>`;
-    return `<div class="card ${st}">
+    return `<div class="card ${st}" data-card="${esc(s.id)}">
       <div class="strip"></div>
       <div class="head">
         <div class="tile">${esc(s.icon)}</div>
@@ -297,17 +297,41 @@
     const grid=list.length?`<div class="grid">${list.map(cardHTML).join("")}</div>`:emptyHTML();
     $("#content").innerHTML=`<div class="view">
       <div class="stats">
-        ${stat("Server online",`${on}<small> / ${state.servers.length}</small>`,'<span class="dotk"></span>läuft')}
-        ${stat("Installiert",`${state.servers.filter(s=>s.installed).length}`,"einsatzbereit")}
-        ${stat("CPU (System)",`${state.status.cpu}<small>%</small>`,"Gesamtlast")}
-        ${stat("RAM (System)",`${state.status.ram}<small>%</small>`,"belegt")}
+        ${stat("Server online",`${on}<small> / ${state.servers.length}</small>`,'<span class="dotk"></span>läuft',"st-online")}
+        ${stat("Installiert",`${state.servers.filter(s=>s.installed).length}`,"einsatzbereit","st-inst")}
+        ${stat("CPU (System)",`${state.status.cpu}<small>%</small>`,"Gesamtlast","st-cpu")}
+        ${stat("RAM (System)",`${state.status.ram}<small>%</small>`,"belegt","st-ram")}
       </div>
       <div class="sec-h"><h2>Deine Server</h2></div>
       ${grid}
     </div>`;
     animateBars();
   }
-  function stat(k,v,t){return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="t">${t}</div></div>`;}
+  function stat(k,v,t,id){return `<div class="stat"><div class="k">${k}</div><div class="v"${id?` id="${id}"`:""}>${v}</div><div class="t">${t}</div></div>`;}
+
+  // Aktualisiert nur die Live-Zahlen im DOM (kein Neuaufbau -> kein Flackern)
+  function updateLive(){
+    const on=state.servers.filter(s=>s.running).length;
+    const set=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
+    set("st-online",`${on}<small> / ${state.servers.length}</small>`);
+    set("st-inst",`${state.servers.filter(s=>s.installed).length}`);
+    set("st-cpu",`${state.status.cpu}<small>%</small>`);
+    set("st-ram",`${state.status.ram}<small>%</small>`);
+    state.servers.forEach(s=>{
+      const c=document.querySelector(`[data-card="${s.id}"]`);if(!c)return;
+      if(s.running){
+        const cf=c.querySelector('[data-fill="cpu"]');if(cf){cf.style.width=s.cpu+"%";cf.className=(s.cpu<50?"ok":s.cpu<80?"warn":"crit");}
+        const rf=c.querySelector('[data-fill="ram"]');if(rf)rf.style.width=s.ram_percent+"%";
+        const cr=c.querySelector('[data-rv="cpu"]');if(cr)cr.textContent=s.cpu+"%";
+        const rr=c.querySelector('[data-rv="ram"]');if(rr)rr.textContent=s.ram_gb+" GB";
+      }else{
+        const ur=c.querySelector('[data-rv="uptime"]');if(ur)ur.textContent=s.uptime;
+      }
+    });
+  }
+  // Signatur der STRUKTUR (nicht der Live-Zahlen): nur bei Änderung komplett neu rendern
+  function structSig(){return state.view+"|"+state.filter+"|"+state.servers.map(s=>s.id+":"+s.name+":"+(s.running?1:0)+":"+(s.installed?1:0)+":"+s.port).join(",");}
+  let lastSig="";
 
   function renderServers(){
     const list=state.servers.filter(s=>s.name.toLowerCase().includes(state.filter));
@@ -533,6 +557,7 @@
     else if(state.view==="servers")renderServers();
     else if(state.view==="tools")renderTools();
     else if(state.view==="settings")renderSettings();
+    lastSig=structSig();
   }
 
   function setActiveNav(v){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));}
@@ -658,11 +683,18 @@
   api("/api/games").then(d=>fillGames((d&&d.games&&d.games.length)?d.games:FALLBACK_GAMES)).catch(()=>fillGames(FALLBACK_GAMES));
 
   // Init + Live-Refresh
-  async function tick(){await refresh();render();}
   (async function init(){
     await refresh();render();
-    // Auto-Refresh NUR für die Listen-Ansichten (damit Formulare nicht überschrieben werden)
-    timer=setInterval(async()=>{await refresh();if(!state.detail&&(state.view==="dashboard"||state.view==="servers"))render();},5000);
+    // Auto-Refresh: nur Live-Zahlen in place aktualisieren (kein Flackern);
+    // komplett neu rendern nur, wenn sich die Struktur ändert (Server hinzu/weg, Start/Stop).
+    timer=setInterval(async()=>{
+      await refresh();
+      if(state.detail)return;
+      if(state.view!=="dashboard"&&state.view!=="servers")return;
+      const ns=structSig();
+      if(ns!==lastSig){lastSig=ns;render();}
+      else updateLive();
+    },5000);
   })();
 })();
 </script>
