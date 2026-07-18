@@ -24,13 +24,29 @@ def _port_open(port, host="127.0.0.1"):
             return False
 
 
-def main():
+def _serve_forever(url):
+    """Nur den Webserver laufen lassen (für Server ohne Desktop)."""
+    print(f"🌐 Web-Oberfläche läuft:  {url}")
+    print("   Im selben Netz erreichbar unter  http://<server-ip>:<port>")
+    print("   Zum Beenden: Strg+C")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        return 0
+
+
+def main(window=True):
+    # Server-/Headless-Modus: nur ausliefern, kein Fenster
+    if "--serve" in sys.argv or "--headless" in sys.argv or "--no-window" in sys.argv:
+        window = False
+
     from gsm.paths import load_base_dir, set_base_dir, ensure_directories
 
     base = load_base_dir()
     if not base:
         print("❌ Kein Installationsordner konfiguriert.")
-        print("   Bitte zuerst das Desktop-Tool starten und einrichten:  python run.py")
+        print("   Bitte zuerst einrichten:  python run.py  (bzw. python run.py --classic)")
         return 1
 
     set_base_dir(base)
@@ -52,18 +68,21 @@ def main():
 
     url = f"http://localhost:{port}"
 
+    # Server-Modus: nur laufen lassen
+    if not window:
+        return _serve_forever(url)
+
+    # Desktop-Modus: natives Fenster (pywebview)
     try:
         import webview
     except ImportError:
         print("⚠️  pywebview ist nicht installiert  ->  für das native Fenster:  pip install pywebview")
-        print(f"   Öffne die Oberfläche stattdessen im Browser:  {url}")
-        import webbrowser
-        webbrowser.open(url)
         try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            return 0
+            import webbrowser
+            webbrowser.open(url)
+        except Exception:
+            pass
+        return _serve_forever(url)
 
     print(f"🖥️  Öffne Fenster:  {url}")
     webview.create_window(
