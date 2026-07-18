@@ -205,7 +205,7 @@
     <div class="bottom">
       <button class="sbtn" id="theme"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg><span id="thlabel">Helles Design</span></button>
       <button class="sbtn" id="logout"><svg class="ic" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>Abmelden</button>
-      <div class="ver">Alles lokal · v3.37</div>
+      <div class="ver" id="ver2">Alles lokal</div>
     </div>
   </aside>
 
@@ -715,6 +715,13 @@
   function fillGames(list){games=list;$("#f-game").innerHTML=list.map(g=>`<option value="${esc(g.name)}" data-port="${g.default_port||7777}">${esc(g.icon||"🎮")} ${esc(g.name)}</option>`).join("");}
   $("#f-game").addEventListener("change",e=>{const o=e.target.selectedOptions[0];if(o&&o.dataset.port)$("#f-port").value=o.dataset.port;});
   api("/api/games").then(d=>fillGames((d&&d.games&&d.games.length)?d.games:FALLBACK_GAMES)).catch(()=>fillGames(FALLBACK_GAMES));
+
+  // Version in der Seitenleiste anzeigen (dynamisch statt fest)
+  api("/api/app/version").then(v=>{
+    if(!v||!v.version)return;
+    const e=$("#ver");if(e)e.textContent="v"+v.version;
+    const e2=$("#ver2");if(e2)e2.textContent="Alles lokal · v"+v.version;
+  }).catch(()=>{});
 
   // Init + Live-Refresh
   (async function init(){
