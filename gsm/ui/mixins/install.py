@@ -648,31 +648,49 @@ class InstallUpdateMixin:
         threading.Thread(target=do_install, daemon=True).start()
     
     def install_steamcmd(self, callback=None):
-        """Installiert SteamCMD"""
+        """Installiert SteamCMD (mit Fortschritts-Dialog)"""
+        from gsm.ui.progress import ProgressDialog
+        progress = ProgressDialog(
+            self, title="SteamCMD installieren", status="Lade SteamCMD herunter…"
+        )
+
         def do_install():
             try:
                 os.makedirs(PATHS["steamcmd"], exist_ok=True)
                 url = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
                 zip_path = os.path.join(PATHS["steamcmd"], "steamcmd.zip")
-                
-                response = requests.get(url, stream=True)
+
+                progress.append_log("📥 Lade steamcmd.zip…")
+                response = requests.get(url, stream=True, timeout=30)
+                response.raise_for_status()
                 with open(zip_path, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=8192):
                         f.write(chunk)
-                
+
+                progress.set_status("Entpacke SteamCMD…")
+                progress.append_log("📦 Entpacke…")
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                     zip_ref.extractall(PATHS["steamcmd"])
-                
+
                 os.remove(zip_path)
-                
+
                 self.config_manager.app_config["steamcmd_installed"] = True
                 self.config_manager.save_app_config()
-                
+                progress.append_log("✅ SteamCMD installiert.")
+
                 if callback:
+                    # Weiter zur Server-Installation: diesen Dialog schließen
+                    self.after(0, progress.destroy)
                     self.after(0, callback)
+                else:
+                    progress.finish(True, "✅ SteamCMD wurde installiert.")
 
             except Exception as e:
-                err_msg = str(e)
-                self.after(0, lambda: messagebox.showerror("Fehler", err_msg))
-        
+                err = str(e)
+                progress.finish(
+                    False,
+                    f"❌ SteamCMD-Installation fehlgeschlagen: {err}\n"
+                    f"Bitte Internetverbindung prüfen und erneut versuchen."
+                )
+
         threading.Thread(target=do_install, daemon=True).start()
