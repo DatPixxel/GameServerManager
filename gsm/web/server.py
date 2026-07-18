@@ -25,7 +25,7 @@ from gsm.games import SUPPORTED_GAMES
 from gsm.security import generate_session_token, validate_config_path
 from gsm.mods import _sanitize_pak_filename, fetch_workshop_mod_names
 from gsm.web.templates import (
-    get_login_template, get_web_template,
+    get_modern_template, get_modern_login_template,
     get_chat_disabled_template, get_chat_forbidden_template, get_chat_template,
 )
 
@@ -102,8 +102,9 @@ def create_web_app(app_instance, config_manager):
     def index():
         if 'token' not in session or session['token'] not in valid_sessions:
             return redirect('/login')
-        return render_template_string(get_web_template(config_manager))
-    
+        # Moderne Oberfläche direkt ausliefern (kein Jinja, da SPA mit {}/${})
+        return get_modern_template(config_manager)
+
     @flask_app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
@@ -113,8 +114,8 @@ def create_web_app(app_instance, config_manager):
                 valid_sessions[token] = True
                 session['token'] = token
                 return redirect('/')
-            return render_template_string(get_login_template(config_manager, error=True))
-        return render_template_string(get_login_template(config_manager))
+            return get_modern_login_template(config_manager, error=True)
+        return get_modern_login_template(config_manager)
     
     @flask_app.route('/logout')
     def logout():
@@ -331,12 +332,19 @@ def create_web_app(app_instance, config_manager):
         servers = []
         for server_id, server_config in config_manager.servers.items():
             instance = app_instance.server_instances.get(server_id)
+            running = instance.is_running() if instance else False
             conan_status = None
             if server_config.get('game') == 'Conan Exiles' and instance:
                 try:
                     conan_status = instance.get_conan_mod_status()
                 except Exception:
                     conan_status = None
+            res = {}
+            if running:
+                try:
+                    res = instance.get_resource_usage() or {}
+                except Exception:
+                    res = {}
             servers.append({
                 'id': server_id,
                 'name': server_config.get('name', 'Server'),
@@ -346,7 +354,10 @@ def create_web_app(app_instance, config_manager):
                 'port': server_config.get('port', 0),
                 'query_port': server_config.get('query_port', 0),
                 'max_players': server_config.get('max_players', 0),
-                'running': instance.is_running() if instance else False,
+                'running': running,
+                'cpu': round(res.get('cpu', 0)),
+                'ram_percent': round(res.get('ram_percent', 0)),
+                'ram_gb': round(res.get('ram_gb', 0), 1),
                 'installed': server_config.get('installed', False),
                 'uptime': instance.get_uptime() if instance else '-',
                 'mods': server_config.get('mods', []),
@@ -360,7 +371,91 @@ def create_web_app(app_instance, config_manager):
                 'backup_interval': server_config.get('backup_interval_hours', 0)
             })
         return jsonify({'servers': servers})
-    
+
+    @flask_app.route('/api/games')
+    def api_games():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        out = [{'name': k, 'icon': v.get('icon', '🎮'),
+                'default_port': v.get('default_ports', {}).get('game', 7777)}
+               for k, v in SUPPORTED_GAMES.items()]
+        return jsonify({'games': out})
+
+    @flask_app.route('/api/servers', methods=['POST'])
+    def api_create_server():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        data = request.get_json(silent=True) or {}
+        name = str(data.get('name', '')).strip()
+        game = str(data.get('game', '')).strip()
+        if not name:
+            return jsonify({'success': False, 'message': 'Bitte einen Servernamen angeben.'}), 400
+        if game not in SUPPORTED_GAMES:
+            return jsonify({'success': False, 'message': 'Unbekanntes Spiel.'}), 400
+        try:
+            port = int(data.get('port', 0))
+            max_players = int(data.get('max_players', 10))
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Port und Max. Spieler müssen Zahlen sein.'}), 400
+        if not (1 <= port <= 65535):
+            return jsonify({'success': False, 'message': 'Port muss zwischen 1 und 65535 liegen.'}), 400
+
+        import re as _re
+        base_id = _re.sub(r'[^a-z0-9_]', '', name.lower().replace(' ', '_')) or 'server'
+        server_id = base_id
+        _n = 1
+        while server_id in config_manager.servers:
+            server_id = f"{base_id}_{_n}"
+            _n += 1
+
+        game_info = SUPPORTED_GAMES.get(game, {})
+        try:
+            query_port = int(data.get('query_port', 0))
+        except (ValueError, TypeError):
+            query_port = 0
+        if not query_port:
+            query_port = game_info.get('default_ports', {}).get('query', port + 1)
+
+        from datetime import datetime as _dt
+        server_config = {
+            'name': name, 'game': game, 'map': '', 'map_name': '',
+            'port': port, 'query_port': query_port, 'max_players': max_players,
+            'server_password': '', 'admin_password': 'admin',
+            'mods': [], 'mod_names': {},
+            'conan_auto_mod_update': game == 'Conan Exiles',
+            'conan_mod_sync': {}, 'conan_mod_upload': {},
+            'auto_restart': True, 'auto_backup': True,
+            'backup_interval_hours': 3, 'max_backups': 10,
+            'installed': False, 'created_at': _dt.now().isoformat()
+        }
+        config_manager.add_server(server_id, server_config)
+        try:
+            from gsm.server import ServerInstance
+            app_instance.server_instances[server_id] = ServerInstance(
+                server_id, server_config, config_manager,
+                getattr(app_instance, 'discord_notifier', None)
+            )
+        except Exception:
+            pass
+        return jsonify({'success': True, 'id': server_id, 'message': f'Server „{name}“ angelegt.'})
+
+    @flask_app.route('/api/server/<server_id>/delete', methods=['POST'])
+    def api_delete_server(server_id):
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        if server_id not in config_manager.servers:
+            return jsonify({'success': False, 'message': 'Server nicht gefunden'}), 404
+        instance = app_instance.server_instances.get(server_id)
+        if instance and instance.is_running():
+            try:
+                instance.stop()
+            except Exception:
+                pass
+        config_manager.remove_server(server_id)
+        app_instance.server_instances.pop(server_id, None)
+        return jsonify({'success': True, 'message': 'Server aus dem Manager entfernt (Dateien bleiben erhalten).'})
+
     @flask_app.route('/api/server/<server_id>/details')
     def api_server_details(server_id):
         if 'token' not in session or session['token'] not in valid_sessions:

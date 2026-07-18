@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Server Manager</title>
+<style>
+  :root{
+    --ground:#0d1015;--surface:#151a21;--surface-2:#1b212b;--surface-3:#232b37;
+    --border:#28313d;--border-soft:#1f2731;--hover:#2b3542;
+    --text:#e9edf3;--muted:#98a2b1;--faint:#5f6b7a;
+    --accent:#4c9aff;--accent-2:#7db4ff;--accent-weak:#16233a;
+    --ok:#3fb771;--ok-bg:#122a1c;--warn:#e0a93c;--warn-bg:#2e2410;--crit:#e5574e;--crit-bg:#2e1618;
+    --r:16px;--r-s:11px;--r-xs:8px;
+    --font:system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --mono:"Cascadia Code","Consolas",ui-monospace,monospace;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 34px -16px rgba(0,0,0,.6);
+    --shadow-s:0 1px 2px rgba(0,0,0,.35),0 6px 16px -10px rgba(0,0,0,.5);
+    --sb:230px;
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f6;--surface:#fff;--surface-2:#f4f7fb;--surface-3:#e9eef5;
+    --border:#dce3ec;--border-soft:#e9eef5;--hover:#eef2f7;
+    --text:#141a22;--muted:#586373;--faint:#8b96a5;
+    --accent:#2f7be8;--accent-2:#5c9af0;--accent-weak:#dceafc;
+    --ok:#1a8f4d;--ok-bg:#dcf3e5;--warn:#a9760f;--warn-bg:#f6ecd3;--crit:#cc3b33;--crit-bg:#fadedc;
+    --shadow:0 1px 2px rgba(20,30,45,.06),0 16px 34px -18px rgba(20,30,45,.22);
+    --shadow-s:0 1px 2px rgba(20,30,45,.05),0 8px 18px -12px rgba(20,30,45,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--ground);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  a{color:var(--accent);text-decoration:none}
+  svg{display:block}
+  .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  ::-webkit-scrollbar{width:11px;height:11px}::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+
+  .app{display:grid;grid-template-columns:var(--sb) 1fr;height:100vh;overflow:hidden}
+  .side{background:var(--ground);border-right:1px solid var(--border-soft);display:flex;flex-direction:column;padding:16px 12px;gap:4px}
+  .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px}
+  .logo{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;background:linear-gradient(150deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:16px;box-shadow:0 6px 14px -4px var(--accent-weak)}
+  .brand b{font-size:14px;letter-spacing:-.01em;display:block}
+  .brand small{color:var(--faint);font-size:11px}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav button{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--r-xs);color:var(--muted);font-size:13.5px;font-weight:500;text-align:left;width:100%;position:relative;transition:background .15s,color .15s}
+  .nav button .ic{width:17px;height:17px;opacity:.85}
+  .nav button:hover{background:var(--surface-2);color:var(--text)}
+  .nav button.active{background:var(--accent-weak);color:var(--text)}
+  .nav button.active .ic{color:var(--accent);opacity:1}
+  .nav button.active::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+  .nav .count{margin-left:auto;font-size:11px;font-weight:700;color:var(--faint);background:var(--surface-3);padding:1px 7px;border-radius:999px}
+  .side .spacer{flex:1}
+  .side .bottom{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--border-soft);padding-top:12px}
+  .sbtn{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-xs);color:var(--muted);font-size:13px;font-weight:500}
+  .sbtn:hover{background:var(--surface-2);color:var(--text)}
+  .ver{color:var(--faint);font-size:11px;padding:4px 12px}
+
+  .main{overflow-y:auto;background:var(--surface)}
+  .topbar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:16px;padding:18px 26px}
+  .topbar .tt h1{font-size:20px;letter-spacing:-.02em}
+  .topbar .tt p{color:var(--faint);font-size:12.5px;margin-top:2px}
+  .search{margin-left:auto;display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-xs);padding:8px 12px;width:220px;transition:border-color .15s}
+  .search:focus-within{border-color:var(--accent)}
+  .search input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:100%}
+  .search input::placeholder{color:var(--faint)}
+  .search kbd{font-family:var(--mono);font-size:10px;color:var(--faint);border:1px solid var(--border);border-radius:5px;padding:1px 5px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:var(--r-xs);font-size:13px;font-weight:650;transition:filter .15s,background .15s,border-color .15s,transform .08s;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 6px 16px -8px var(--accent)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+  .btn.ghost:hover{border-color:var(--accent);background:var(--surface-3)}
+  .btn.danger{background:transparent;color:var(--muted);border:1px solid var(--border)}
+  .btn.danger:hover{color:var(--crit);border-color:var(--crit);background:var(--crit-bg)}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .view{padding:24px 26px 44px;animation:fade .28s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .hidden{display:none!important}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .stat{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:15px 16px}
+  .stat .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:650}
+  .stat .v{font-size:27px;font-weight:750;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:14px;color:var(--muted);font-weight:500}
+  .stat .t{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-top:4px}
+  .dotk{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+
+  .sec-h{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
+  .sec-h h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);font-weight:650}
+  .sec-h::after{content:"";flex:1;height:1px;background:var(--border-soft)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  .card{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:17px;position:relative;overflow:hidden;transition:border-color .18s,transform .18s,box-shadow .18s}
+  .card:hover{border-color:var(--border);transform:translateY(-3px);box-shadow:var(--shadow-s)}
+  .card .strip{position:absolute;left:0;top:0;bottom:0;width:3px;transition:background .3s}
+  .card.ok .strip{background:var(--ok)}.card.off .strip{background:var(--crit)}.card.na .strip{background:var(--faint)}
+  .card .head{display:flex;align-items:flex-start;gap:12px;margin-bottom:15px}
+  .tile{width:44px;height:44px;border-radius:12px;flex:none;display:grid;place-items:center;font-size:22px;background:var(--surface-3);border:1px solid var(--border-soft)}
+  .card .nm{font-size:15.5px;font-weight:680;letter-spacing:-.01em;cursor:pointer}
+  .card .nm:hover{color:var(--accent)}
+  .card .meta{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:3px}
+  .pill{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;transition:all .3s;white-space:nowrap}
+  .pill i{width:6px;height:6px;border-radius:50%;display:block}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.ok i{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+  .pill.off{background:var(--crit-bg);color:var(--crit)}.pill.off i{background:var(--crit)}
+  .pill.na{background:var(--surface-3);color:var(--muted)}.pill.na i{background:var(--faint)}
+  .bars{display:flex;flex-direction:column;gap:9px;margin-bottom:15px}
+  .bar{display:grid;grid-template-columns:38px 1fr 58px;align-items:center;gap:10px}
+  .bar .l{font-family:var(--mono);font-size:10px;color:var(--faint);text-transform:uppercase}
+  .track{height:6px;border-radius:999px;background:var(--surface-3);overflow:hidden}
+  .track>i{display:block;height:100%;border-radius:999px;width:0;transition:width .7s cubic-bezier(.4,0,.2,1)}
+  .track>i.ok{background:linear-gradient(90deg,var(--ok),#5fd08c)}.track>i.warn{background:linear-gradient(90deg,var(--warn),#f0c56a)}.track>i.crit{background:linear-gradient(90deg,var(--crit),#f0857e)}.track>i.ac{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .bar .rv{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  .acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px solid var(--border-soft);padding-top:14px}
+  .act{padding:8px;border-radius:var(--r-xs);font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;border:1px solid var(--border-soft);color:var(--muted)}
+  .act:hover{color:var(--text);border-color:var(--border);background:var(--surface)}
+  .act.pri{background:var(--accent);color:#fff;border-color:var(--accent)}.act.pri:hover{filter:brightness(1.08);color:#fff}
+  .act.stop:hover{color:var(--crit);border-color:var(--crit);background:var(--crit-bg)}
+
+  .tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .tool{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:18px;transition:border-color .18s,transform .18s;cursor:pointer}
+  .tool:hover{border-color:var(--accent);transform:translateY(-3px)}
+  .tool .ti{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:19px;background:var(--accent-weak);color:var(--accent);margin-bottom:12px}
+  .tool h3{font-size:14.5px;letter-spacing:-.01em}
+  .tool p{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+
+  .empty{text-align:center;padding:56px 20px;max-width:440px;margin:10px auto}
+  .empty .big{width:74px;height:74px;border-radius:20px;display:grid;place-items:center;margin:0 auto 20px;background:var(--accent-weak);color:var(--accent);font-size:34px}
+  .empty h3{font-size:19px;letter-spacing:-.01em}
+  .empty p{color:var(--muted);font-size:14px;margin:8px 0 22px;line-height:1.5}
+
+  /* Detail */
+  .back{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;font-weight:600;margin-bottom:16px}
+  .back:hover{color:var(--text)}
+  .dhead{display:flex;align-items:center;gap:15px;margin-bottom:20px;flex-wrap:wrap}
+  .dhead .tile{width:52px;height:52px;font-size:26px}
+  .dhead h1{font-size:22px;letter-spacing:-.02em}
+  .dhead .dm{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:3px}
+  .dhead .sp{flex:1}
+  .dactions{display:flex;gap:8px;flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border-soft);margin-bottom:20px;overflow-x:auto}
+  .tab{padding:10px 15px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .panel{animation:fade .2s}
+  .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .kvc{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:14px 16px}
+  .kvc .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:650}
+  .kvc .v{font-size:15px;font-weight:600;margin-top:5px}
+  .logbox{background:#0b0e13;border:1px solid var(--border-soft);border-radius:var(--r-s);padding:14px 16px;font-family:var(--mono);font-size:12px;color:#c6cfda;height:440px;overflow:auto;white-space:pre-wrap;line-height:1.55}
+  :root[data-theme="light"] .logbox{background:#0d1117;color:#c6cfda}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .li{display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:12px 15px}
+  .li .lt{font-weight:600;font-size:13.5px}
+  .li .ls{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:2px}
+  .li .sp{flex:1}
+  .editor{width:100%;min-height:420px;background:#0b0e13;color:#c6cfda;border:1px solid var(--border-soft);border-radius:var(--r-s);padding:14px;font-family:var(--mono);font-size:12.5px;line-height:1.55;resize:vertical;outline:none}
+  .editrow{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
+  .modin{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-xs);padding:9px 12px;color:var(--text);font-size:13px;outline:none;min-width:220px}
+  .modin:focus{border-color:var(--accent)}
+  .modtag{display:inline-flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:999px;padding:6px 8px 6px 13px;font-size:12.5px}
+  .modtag button{color:var(--faint);font-size:15px;line-height:1}.modtag button:hover{color:var(--crit)}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(3,6,10,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:40;animation:fade .2s}
+  .overlay.show{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);width:min(480px,92vw);box-shadow:var(--shadow);overflow:hidden;animation:pop .24s cubic-bezier(.2,.8,.3,1)}
+  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:none}}
+  .mh{padding:20px 22px 4px;display:flex;align-items:center;gap:12px}
+  .mh .tile{width:40px;height:40px;font-size:19px}
+  .mh h3{font-size:17px;letter-spacing:-.01em}
+  .mh p{font-size:12.5px;color:var(--faint);margin-top:2px}
+  .form{padding:14px 22px 4px;display:flex;flex-direction:column;gap:14px}
+  .field label{font-size:11.5px;font-weight:650;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px}
+  .field input,.field select{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-xs);padding:10px 12px;color:var(--text);font-size:13.5px;font-family:inherit;outline:none;transition:border-color .15s}
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mf{display:flex;gap:10px;justify-content:flex-end;padding:16px 22px 20px}
+
+  .toasts{position:fixed;right:20px;bottom:20px;z-index:60;display:flex;flex-direction:column;gap:10px}
+  .toast{display:flex;align-items:center;gap:11px;background:var(--surface-3);border:1px solid var(--border);border-radius:var(--r-xs);padding:12px 15px;box-shadow:var(--shadow-s);min-width:250px;max-width:360px;animation:slidein .3s cubic-bezier(.2,.8,.3,1);font-size:13px}
+  @keyframes slidein{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+  .toast .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .toast.ok .dot{background:var(--ok)}.toast.info .dot{background:var(--accent)}.toast.crit .dot{background:var(--crit)}
+  .toast b{font-weight:650}.toast span{color:var(--muted)}
+  .loading{text-align:center;color:var(--faint);padding:40px;font-size:13px}
+
+  @media(max-width:760px){.app{grid-template-columns:1fr}.side{display:none}.stats{grid-template-columns:1fr 1fr}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">G</div><div><b>Server Manager</b><small id="ver">v3.37</small></div></div>
+    <nav class="nav" id="nav">
+      <button data-view="dashboard" class="active"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
+      <button data-view="servers"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r=".6"/><circle cx="7" cy="17" r=".6"/></svg>Server <span class="count" id="navcount">0</span></button>
+      <button data-view="tools"><svg class="ic" viewBox="0 0 24 24"><path d="M10.3 3.2a1.9 1.9 0 0 1 3.4 0l.4.9a1.9 1.9 0 0 0 2.3 1l1-.3a1.9 1.9 0 0 1 1.9 3l-.6.7a1.9 1.9 0 0 0 0 2.6l.6.7a1.9 1.9 0 0 1-1.9 3l-1-.3a1.9 1.9 0 0 0-2.3 1l-.4.9a1.9 1.9 0 0 1-3.4 0l-.4-.9a1.9 1.9 0 0 0-2.3-1l-1 .3a1.9 1.9 0 0 1-1.9-3l.6-.7a1.9 1.9 0 0 0 0-2.6l-.6-.7a1.9 1.9 0 0 1 1.9-3l1 .3a1.9 1.9 0 0 0 2.3-1z"/><circle cx="12" cy="12" r="2.5"/></svg>Tools</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="bottom">
+      <button class="sbtn" id="theme"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg><span id="thlabel">Helles Design</span></button>
+      <button class="sbtn" id="logout"><svg class="ic" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>Abmelden</button>
+      <div class="ver">Alles lokal · v3.37</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="tt"><h1 id="vtitle">Dashboard</h1><p id="vsub">Lade…</p></div>
+      <label class="search" id="searchwrap"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="search" placeholder="Server suchen…"><kbd>/</kbd></label>
+      <button class="btn primary" id="addbtn"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px;stroke-width:2.4"><path d="M12 5v14M5 12h14"/></svg>Server hinzufügen</button>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="mh"><div class="tile">🎮</div><div><h3>Neuen Server hinzufügen</h3><p>In wenigen Sekunden startklar</p></div></div>
+    <div class="form">
+      <div class="field"><label>Servername</label><input id="f-name" placeholder="Mein Server" value="Mein Server"></div>
+      <div class="field"><label>Spiel</label><select id="f-game"></select></div>
+      <div class="row2">
+        <div class="field"><label>Port</label><input id="f-port" value="7777" inputmode="numeric"></div>
+        <div class="field"><label>Max. Spieler</label><input id="f-max" value="20" inputmode="numeric"></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn ghost" id="cancel">Abbrechen</button><button class="btn primary" id="create">Server anlegen</button></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), el=(t,c)=>{const e=document.createElement(t);if(c)e.className=c;return e};
+  const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  let state={view:"dashboard",servers:[],status:{cpu:0,ram:0},detail:null,tab:"overview",filter:""};
+  let games=[];
+  let timer=null;
+
+  async function api(path,opts){
+    const r=await fetch(path,Object.assign({headers:{"Content-Type":"application/json"}},opts||{}));
+    if(r.status===401){location.href="/login";throw new Error("unauth");}
+    const ct=r.headers.get("content-type")||"";
+    return ct.includes("json")?r.json():r.text();
+  }
+
+  function toast(title,msg,kind){
+    const t=el("div","toast "+(kind||"info"));
+    t.innerHTML=`<span class="dot"></span><div><b>${esc(title)}</b> <span>${esc(msg||"")}</span></div>`;
+    $("#toasts").appendChild(t);
+    setTimeout(()=>{t.style.transition="opacity .3s,transform .3s";t.style.opacity="0";t.style.transform="translateX(30px)";setTimeout(()=>t.remove(),300);},2800);
+  }
+
+  function animateBars(){document.querySelectorAll(".track>i[data-w]").forEach(b=>requestAnimationFrame(()=>{b.style.width=(b.dataset.w||0)+"%";}));}
+
+  // ---------- Rendering ----------
+  function cardHTML(s){
+    const st=!s.installed?"na":s.running?"ok":"off";
+    const pill=!s.installed?'<span class="pill na"><i></i>Nicht installiert</span>':s.running?'<span class="pill ok"><i></i>Online</span>':'<span class="pill off"><i></i>Offline</span>';
+    const cpuC=s.cpu<50?"ok":s.cpu<80?"warn":"crit";
+    const bars=s.running?`<div class="bars">
+      <div class="bar"><span class="l">CPU</span><span class="track"><i class="${cpuC}" data-w="${s.cpu}"></i></span><span class="rv">${s.cpu}%</span></div>
+      <div class="bar"><span class="l">RAM</span><span class="track"><i class="ac" data-w="${s.ram_percent}"></i></span><span class="rv">${s.ram_gb} GB</span></div>
+    </div>`:`<div class="bars"><div class="bar"><span class="l">Status</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">—</span></div><div class="bar"><span class="l">Uptime</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">${esc(s.uptime)}</span></div></div>`;
+    let mainBtn;
+    if(!s.installed) mainBtn=`<button class="act pri" data-a="install" data-id="${s.id}">⬇ Installieren</button>`;
+    else if(s.running) mainBtn=`<button class="act stop" data-a="stop" data-id="${s.id}">■ Stop</button>`;
+    else mainBtn=`<button class="act pri" data-a="start" data-id="${s.id}">▶ Start</button>`;
+    return `<div class="card ${st}">
+      <div class="strip"></div>
+      <div class="head">
+        <div class="tile">${esc(s.icon)}</div>
+        <div><div class="nm" data-open="${s.id}">${esc(s.name)}</div><div class="meta">:${esc(s.port)}${s.map?" · "+esc(s.map):""}</div></div>
+        ${pill}
+      </div>
+      ${bars}
+      <div class="acts">
+        ${mainBtn}
+        <button class="act" data-open="${s.id}">⚙ Details</button>
+        <button class="act" data-a="backup" data-id="${s.id}">💾 Backup</button>
+      </div>
+    </div>`;
+  }
+
+  function renderDashboard(){
+    const on=state.servers.filter(s=>s.running).length;
+    const list=state.servers.filter(s=>s.name.toLowerCase().includes(state.filter));
+    $("#vtitle").textContent="Dashboard";
+    $("#vsub").textContent=`${on} von ${state.servers.length} Servern online`;
+    const grid=list.length?`<div class="grid">${list.map(cardHTML).join("")}</div>`:emptyHTML();
+    $("#content").innerHTML=`<div class="view">
+      <div class="stats">
+        ${stat("Server online",`${on}<small> / ${state.servers.length}</small>`,'<span class="dotk"></span>läuft')}
+        ${stat("Installiert",`${state.servers.filter(s=>s.installed).length}`,"einsatzbereit")}
+        ${stat("CPU (System)",`${state.status.cpu}<small>%</small>`,"Gesamtlast")}
+        ${stat("RAM (System)",`${state.status.ram}<small>%</small>`,"belegt")}
+      </div>
+      <div class="sec-h"><h2>Deine Server</h2></div>
+      ${grid}
+    </div>`;
+    animateBars();
+  }
+  function stat(k,v,t){return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="t">${t}</div></div>`;}
+
+  function renderServers(){
+    const list=state.servers.filter(s=>s.name.toLowerCase().includes(state.filter));
+    $("#vtitle").textContent="Server";
+    $("#vsub").textContent="Alle Server auf einen Blick";
+    $("#content").innerHTML=`<div class="view">${list.length?`<div class="grid">${list.map(cardHTML).join("")}</div>`:emptyHTML()}</div>`;
+    animateBars();
+  }
+
+  function emptyHTML(){
+    return `<div class="empty"><div class="big">🎮</div><h3>Noch kein Server hier</h3>
+      <p>Leg deinen ersten Game-Server an — Spiel wählen, Name vergeben, fertig. Die Installation läuft danach automatisch.</p>
+      <button class="btn primary" id="emptyadd">＋ Ersten Server anlegen</button></div>`;
+  }
+
+  const TOOLS=[["💾","Backups","Öffne einen Server und verwalte dort seine Backups.","servers"],
+    ["🔄","Updates","Aktualisiere Server über die Detail-Ansicht.","servers"],
+    ["🎮","RCON / Konsole","Im Desktop-Tool: RCON-Dashboard mit Karte.",null],
+    ["💬","Chat & Stream","Textchat + Screen-Sharing (falls aktiviert).","/chat"],
+    ["🌐","Diese Web-Oberfläche","Läuft bereits — vom Handy im selben Netz erreichbar.",null],
+    ["🔔","Discord","Benachrichtigungen im Desktop-Tool einrichten.",null]];
+  function renderTools(){
+    $("#vtitle").textContent="Tools";
+    $("#vsub").textContent="Zusatzfunktionen & Werkzeuge";
+    $("#content").innerHTML=`<div class="view"><div class="sec-h"><h2>Werkzeuge</h2></div>
+      <div class="tools">${TOOLS.map((t,i)=>`<div class="tool" data-ti="${i}"><div class="ti">${t[0]}</div><h3>${t[1]}</h3><p>${t[2]}</p></div>`).join("")}</div></div>`;
+  }
+
+  // ---------- Detail ----------
+  async function openDetail(id){
+    state.detail=id;state.tab="overview";
+    setActiveNav(null);
+    renderDetailShell();
+    loadTab();
+  }
+  function server(){return state.servers.find(s=>s.id===state.detail);}
+  function renderDetailShell(){
+    const s=server();if(!s){backToList();return;}
+    $("#vtitle").textContent=s.name;$("#vsub").textContent=s.game;
+    const st=!s.installed?"na":s.running?"ok":"off";
+    const pill=!s.installed?'<span class="pill na"><i></i>Nicht installiert</span>':s.running?'<span class="pill ok"><i></i>Online</span>':'<span class="pill off"><i></i>Offline</span>';
+    let actionBtns="";
+    if(!s.installed) actionBtns=`<button class="btn primary sm" data-a="install" data-id="${s.id}">⬇ Installieren</button>`;
+    else if(s.running) actionBtns=`<button class="btn danger sm" data-a="stop" data-id="${s.id}">■ Stoppen</button><button class="btn ghost sm" data-a="restart" data-id="${s.id}">↻ Neustart</button>`;
+    else actionBtns=`<button class="btn primary sm" data-a="start" data-id="${s.id}">▶ Starten</button>`;
+    actionBtns+=`<button class="btn ghost sm" data-a="update" data-id="${s.id}">⟳ Update</button><button class="btn ghost sm" data-a="backup" data-id="${s.id}">💾 Backup</button>`;
+    const tabs=[["overview","Übersicht"],["logs","Logs"],["backups","Backups"],["configs","Konfiguration"],["mods","Mods"]];
+    $("#content").innerHTML=`<div class="view">
+      <button class="back" id="back"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M15 18l-6-6 6-6"/></svg>Zurück</button>
+      <div class="dhead"><div class="tile">${esc(s.icon)}</div>
+        <div><h1>${esc(s.name)}</h1><div class="dm">${esc(s.game)} · :${esc(s.port)} · Uptime ${esc(s.uptime)}</div></div>
+        <div class="sp"></div>${pill}
+      </div>
+      <div class="dactions" style="margin-bottom:18px">${actionBtns}
+        <button class="btn danger sm" data-a="delete" data-id="${s.id}" style="margin-left:auto">🗑 Entfernen</button></div>
+      <div class="tabs">${tabs.map(t=>`<button class="tab${t[0]===state.tab?" active":""}" data-tab="${t[0]}">${t[1]}</button>`).join("")}</div>
+      <div id="panel"><div class="loading">Lade…</div></div>
+    </div>`;
+  }
+  async function loadTab(){
+    const s=server();if(!s)return;const p=$("#panel");if(!p)return;
+    if(state.tab==="overview"){
+      const d=await api(`/api/server/${s.id}/details`).catch(()=>null);
+      const c=(d&&d.config)||{};
+      const rows=[["Spiel",s.game],["Port",s.port],["Query-Port",s.query_port],["Max. Spieler",s.max_players],
+        ["Karte",s.map||"—"],["Uptime",s.uptime],["Auto-Neustart",s.auto_restart?"Ja":"Nein"],
+        ["Auto-Backup",s.auto_backup?`alle ${s.backup_interval}h`:"Aus"],["Mods",Array.isArray(s.mods)?s.mods.length:0],["Installiert",s.installed?"Ja":"Nein"]];
+      p.innerHTML=`<div class="panel"><div class="kv">${rows.map(r=>`<div class="kvc"><div class="k">${r[0]}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div></div>`;
+    }
+    else if(state.tab==="logs"){
+      const d=await api(`/api/server/${s.id}/logs`).catch(()=>({logs:[]}));
+      const logs=(d.logs||[]);
+      p.innerHTML=`<div class="panel"><div class="editrow"><button class="btn ghost sm" id="reload">↻ Aktualisieren</button><span style="color:var(--faint);font-size:12px">${logs.length} Zeilen</span></div><div class="logbox" id="logbox">${logs.length?logs.map(esc).join("\n"):"(noch keine Logs)"}</div></div>`;
+      const lb=$("#logbox");if(lb)lb.scrollTop=lb.scrollHeight;
+      $("#reload").onclick=loadTab;
+    }
+    else if(state.tab==="backups"){
+      const d=await api(`/api/server/${s.id}/backups`).catch(()=>({backups:[]}));
+      const b=d.backups||[];
+      p.innerHTML=`<div class="panel">${b.length?`<div class="list">${b.map(x=>`<div class="li"><div><div class="lt">${esc(x.name)}</div><div class="ls">${esc(x.date)} · ${esc(x.size)}</div></div><div class="sp"></div>
+        <button class="btn ghost sm" data-restore="${esc(x.path)}">Wiederherstellen</button>
+        <button class="btn danger sm" data-delbk="${esc(x.path)}">Löschen</button></div>`).join("")}</div>`:'<div class="empty"><div class="big">💾</div><h3>Keine Backups</h3><p>Erstelle oben mit „Backup" das erste Backup dieses Servers.</p></div>'}</div>`;
+    }
+    else if(state.tab==="configs"){
+      const d=await api(`/api/server/${s.id}/configs`).catch(()=>({configs:[]}));
+      const c=d.configs||[];
+      p.innerHTML=`<div class="panel">${c.length?`<div class="list">${c.map(x=>`<div class="li"><div><div class="lt">${esc(x.name)}</div></div><div class="sp"></div><button class="btn ghost sm" data-cfg="${esc(x.path)}">Bearbeiten</button></div>`).join("")}</div>`:'<div class="empty"><div class="big">📄</div><h3>Keine Konfigurationsdateien</h3><p>Erst nach der Installation vorhanden.</p></div>'}</div>`;
+    }
+    else if(state.tab==="mods"){
+      const mods=Array.isArray(s.mods)?s.mods:[];const names=s.mod_names||{};
+      p.innerHTML=`<div class="panel"><div class="editrow"><input class="modin" id="modid" placeholder="Workshop-Mod-ID…"><button class="btn primary sm" id="addmod">＋ Hinzufügen</button></div>
+        <div class="list">${mods.length?mods.map(m=>`<div class="modtag">${esc(names[m]||m)} <span style="color:var(--faint)">(${esc(m)})</span><button data-delmod="${esc(m)}">✕</button></div>`).join(""):'<span style="color:var(--faint);font-size:13px">Noch keine Mods.</span>'}</div></div>`;
+    }
+  }
+
+  async function openConfig(path){
+    const s=server();
+    const d=await api(`/api/server/${s.id}/config/read`,{method:"POST",body:JSON.stringify({file_path:path})}).catch(()=>null);
+    if(!d||!d.success){toast("Fehler",d&&d.message||"Konnte Datei nicht lesen","crit");return;}
+    const p=$("#panel");
+    p.innerHTML=`<div class="panel"><div class="editrow"><button class="btn ghost sm" id="cfgback">← Zurück</button><span style="font-family:var(--mono);font-size:12px;color:var(--faint)">${esc(path)}</span><button class="btn primary sm" id="cfgsave" style="margin-left:auto">Speichern</button></div>
+      <textarea class="editor" id="cfgtext"></textarea></div>`;
+    $("#cfgtext").value=d.content||"";
+    $("#cfgback").onclick=loadTab;
+    $("#cfgsave").onclick=async()=>{
+      const r=await api(`/api/server/${s.id}/config/save`,{method:"POST",body:JSON.stringify({file_path:path,content:$("#cfgtext").value})}).catch(()=>null);
+      if(r&&r.success)toast("Gespeichert","Konfiguration aktualisiert","ok");else toast("Fehler",r&&r.message||"Speichern fehlgeschlagen","crit");
+    };
+  }
+
+  // ---------- Actions ----------
+  async function action(id,a){
+    const s=state.servers.find(x=>x.id===id);const nm=s?s.name:"Server";
+    if(a==="delete"){
+      if(!confirm(`Server „${nm}" wirklich aus dem Manager entfernen?\n\nDie Server-Dateien auf der Platte bleiben erhalten.`))return;
+      const r=await api(`/api/server/${id}/delete`,{method:"POST"}).catch(()=>null);
+      toast(nm,r&&r.message||"entfernt",r&&r.success?"ok":"crit");
+      if(state.detail===id){state.detail=null;setActiveNav("dashboard");}
+      await refresh();render();return;
+    }
+    if(a==="install"){
+      const r=await api(`/api/server/${id}/update`,{method:"POST"}).catch(()=>null); // update = install/validate über SteamCMD
+      toast(nm,"Installation/Update gestartet — läuft im Hintergrund","info");await refresh();render();return;
+    }
+    const verb={start:"wird gestartet…",stop:"wird gestoppt…",restart:"wird neu gestartet…",backup:"Backup wird erstellt…",update:"Update gestartet…"}[a]||"…";
+    const r=await api(`/api/server/${id}/${a}`,{method:"POST"}).catch(()=>null);
+    toast(nm,(r&&r.message)||verb,(r&&r.success!==false)?(a==="stop"?"crit":"ok"):"crit");
+    setTimeout(async()=>{await refresh();render();},900);
+  }
+
+  // ---------- Data ----------
+  async function refresh(){
+    try{
+      const[srv,st]=await Promise.all([api("/api/servers"),api("/api/status").catch(()=>({cpu:0,ram:0}))]);
+      state.servers=(srv&&srv.servers)||[];
+      state.status={cpu:Math.round(st.cpu||0),ram:Math.round(st.ram||0)};
+      $("#navcount").textContent=state.servers.length;
+    }catch(e){/* 401 handled in api() */}
+  }
+
+  function render(){
+    if(state.detail){renderDetailShell();loadTab();return;}
+    if(state.view==="dashboard")renderDashboard();
+    else if(state.view==="servers")renderServers();
+    else if(state.view==="tools")renderTools();
+  }
+
+  function setActiveNav(v){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));}
+  function go(view){state.view=view;state.detail=null;setActiveNav(view);render();}
+  function backToList(){state.detail=null;setActiveNav("dashboard");state.view="dashboard";render();}
+
+  // ---------- Events ----------
+  $("#nav").addEventListener("click",e=>{const b=e.target.closest("button[data-view]");if(b)go(b.dataset.view);});
+  $("#content").addEventListener("click",e=>{
+    const open=e.target.closest("[data-open]");
+    if(open){openDetail(open.getAttribute("data-open"));return;}
+    const act=e.target.closest("[data-a]");
+    if(act){action(act.getAttribute("data-id"),act.getAttribute("data-a"));return;}
+    if(e.target.closest("#back")){backToList();return;}
+    const tab=e.target.closest("[data-tab]");
+    if(tab){state.tab=tab.getAttribute("data-tab");document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t===tab));$("#panel").innerHTML='<div class="loading">Lade…</div>';loadTab();return;}
+    const rb=e.target.closest("[data-restore]");
+    if(rb){const s=server();if(confirm("Dieses Backup wiederherstellen? Der aktuelle Stand wird überschrieben."))api(`/api/server/${s.id}/backups/restore`,{method:"POST",body:JSON.stringify({backup_path:rb.getAttribute("data-restore")})}).then(r=>toast("Backup",r&&r.message||"wiederhergestellt",r&&r.success?"ok":"crit"));return;}
+    const db=e.target.closest("[data-delbk]");
+    if(db){const s=server();if(confirm("Dieses Backup löschen?"))api(`/api/server/${s.id}/backups/delete`,{method:"POST",body:JSON.stringify({backup_path:db.getAttribute("data-delbk")})}).then(r=>{toast("Backup",r&&r.message||"gelöscht",r&&r.success?"ok":"crit");loadTab();});return;}
+    const cfg=e.target.closest("[data-cfg]");
+    if(cfg){openConfig(cfg.getAttribute("data-cfg"));return;}
+    if(e.target.closest("#addmod")){addMod();return;}
+    const dm=e.target.closest("[data-delmod]");
+    if(dm){delMod(dm.getAttribute("data-delmod"));return;}
+    const ti=e.target.closest("[data-ti]");
+    if(ti){const t=TOOLS[+ti.getAttribute("data-ti")];if(t[3]&&t[3].startsWith("/"))location.href=t[3];else if(t[3])go(t[3]);else toast(t[1],"Im Desktop-Tool verfügbar","info");return;}
+    if(e.target.closest("#emptyadd")){openModal();return;}
+  });
+
+  async function addMod(){
+    const s=server();const id=$("#modid").value.trim();if(!id)return;
+    const r=await api(`/api/server/${s.id}/mods`,{method:"POST",body:JSON.stringify({mod_id:id})}).catch(()=>null);
+    toast("Mod",r&&r.message||"hinzugefügt",r&&r.success?"ok":"crit");await refresh();loadTab();
+  }
+  async function delMod(id){
+    const s=server();if(!confirm("Mod entfernen?"))return;
+    const r=await api(`/api/server/${s.id}/mods/${id}`,{method:"DELETE"}).catch(()=>null);
+    toast("Mod",r&&r.message||"entfernt",r&&r.success?"ok":"crit");await refresh();loadTab();
+  }
+
+  // Modal
+  function openModal(){$("#overlay").classList.add("show");setTimeout(()=>$("#f-name").focus(),60);}
+  function closeModal(){$("#overlay").classList.remove("show");}
+  $("#addbtn").onclick=openModal;$("#cancel").onclick=closeModal;
+  $("#overlay").addEventListener("click",e=>{if(e.target===$("#overlay"))closeModal();});
+  $("#create").onclick=async()=>{
+    const name=$("#f-name").value.trim()||"Neuer Server";
+    const game=$("#f-game").value;const port=parseInt($("#f-port").value,10);const max=parseInt($("#f-max").value,10);
+    if(isNaN(port)||port<1||port>65535){toast("Ungültiger Port","Bitte 1–65535 eingeben","crit");return;}
+    const r=await api("/api/servers",{method:"POST",body:JSON.stringify({name,game,port,max_players:isNaN(max)?10:max})}).catch(()=>null);
+    if(r&&r.success){closeModal();toast(name,r.message||"angelegt","ok");await refresh();render();}
+    else toast("Fehler",r&&r.message||"Anlegen fehlgeschlagen","crit");
+  };
+
+  // Theme
+  const savedTheme=localStorage.getItem("gsm-theme");
+  if(savedTheme)document.documentElement.setAttribute("data-theme",savedTheme);
+  function syncThemeLabel(){$("#thlabel").textContent=document.documentElement.getAttribute("data-theme")==="light"?"Dunkles Design":"Helles Design";}
+  syncThemeLabel();
+  $("#theme").onclick=()=>{const l=document.documentElement.getAttribute("data-theme")==="light";const n=l?"dark":"light";document.documentElement.setAttribute("data-theme",n);localStorage.setItem("gsm-theme",n);syncThemeLabel();};
+  $("#logout").onclick=()=>location.href="/logout";
+
+  // Keyboard
+  document.addEventListener("keydown",e=>{
+    if(e.key==="/"&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="TEXTAREA"){e.preventDefault();$("#search").focus();}
+    if(e.key==="Escape"){closeModal();if(state.detail)backToList();}
+    if(e.key==="Enter"&&$("#overlay").classList.contains("show"))$("#create").click();
+  });
+  $("#search").addEventListener("input",e=>{state.filter=e.target.value.toLowerCase();if(!state.detail&&(state.view==="dashboard"||state.view==="servers"))render();});
+
+  // Spiele-Liste vom Backend (echte Namen, sonst Fallback)
+  const FALLBACK_GAMES=[{name:"ARK: Survival Ascended",icon:"🦖",default_port:7777},{name:"Conan Exiles",icon:"⚔️",default_port:7777},{name:"Minecraft Java (Forge)",icon:"⛏️",default_port:25565},{name:"Enshrouded",icon:"🌫️",default_port:15636},{name:"Valheim",icon:"🚀",default_port:2456}];
+  function fillGames(list){games=list;$("#f-game").innerHTML=list.map(g=>`<option value="${esc(g.name)}" data-port="${g.default_port||7777}">${esc(g.icon||"🎮")} ${esc(g.name)}</option>`).join("");}
+  $("#f-game").addEventListener("change",e=>{const o=e.target.selectedOptions[0];if(o&&o.dataset.port)$("#f-port").value=o.dataset.port;});
+  api("/api/games").then(d=>fillGames((d&&d.games&&d.games.length)?d.games:FALLBACK_GAMES)).catch(()=>fillGames(FALLBACK_GAMES));
+
+  // Init + Live-Refresh
+  async function tick(){await refresh();render();}
+  (async function init(){
+    await refresh();render();
+    timer=setInterval(async()=>{await refresh();if(!state.detail||state.tab==="overview")render();},5000);
+  })();
+})();
+</script>
+</body>
+</html>

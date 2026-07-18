@@ -1348,3 +1348,17 @@ def get_chat_forbidden_template(config_manager):
 def get_chat_template(config_manager):
     fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#101826;color:#e5e7eb;padding:30px;"><h2>Chat Template fehlt</h2><p>Datei templates/chat_stream.html wurde nicht gefunden.</p></body></html>'
     return _load_external_template('chat_stream.html', fallback)
+
+
+def get_modern_template(config_manager=None):
+    """Moderne Web-Oberfläche (SPA). Wird direkt ausgeliefert (kein Jinja)."""
+    fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#0e1116;color:#e8ecf2;padding:30px;"><h2>Oberfläche fehlt</h2><p>Datei templates/modern.html wurde nicht gefunden.</p></body></html>'
+    return _load_external_template('modern.html', fallback)
+
+
+def get_modern_login_template(config_manager=None, error=False):
+    """Modernes Login. Fehlerbanner wird per Platzhalter eingesetzt (kein Jinja)."""
+    fallback = '<html><body style="font-family:Segoe UI,sans-serif;background:#0e1116;color:#e8ecf2;padding:30px;"><h2>Login fehlt</h2><p>Datei templates/modern_login.html wurde nicht gefunden.</p></body></html>'
+    html = _load_external_template('modern_login.html', fallback)
+    banner = ('<div class="err">Falsches Passwort. Bitte erneut versuchen.</div>' if error else '')
+    return html.replace('<!--ERROR-->', banner)
