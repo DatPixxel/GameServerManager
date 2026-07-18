@@ -383,11 +383,12 @@
   async function renderSettings(){
     $("#vtitle").textContent="Einstellungen";
     $("#vsub").textContent="Programm-Einstellungen";
-    const s=await api("/api/settings").catch(()=>({}));
+    const [s,v]=await Promise.all([api("/api/settings").catch(()=>({})),api("/api/app/version").catch(()=>({}))]);
     const d=s.discord||{};
     $("#content").innerHTML=`<div class="view" style="max-width:720px">
       <div class="sec-h"><h2>Programm-Update</h2></div>
       <div class="kvc" style="display:flex;flex-direction:column;gap:12px">
+        <div id="ver-line" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">${verText(v)}</div>
         <p style="font-size:13.5px;color:var(--muted);margin:0">Holt die neueste Version per <span class="mono">git pull</span> von GitHub. Danach einmal neu starten, damit die Änderungen aktiv werden.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary sm" id="app-update">🔄 Nach Updates suchen &amp; laden</button>
@@ -610,6 +611,11 @@
     if(e.target.closest("#emptyadd")){openModal();return;}
   });
 
+  function verText(v){
+    if(!v||!v.commit)return `Version ${v&&v.version?esc(v.version):"?"} · Commit unbekannt`;
+    return `Installiert: v${esc(v.version||"?")} · Commit ${esc(v.commit)}${v.branch?" ("+esc(v.branch)+")":""} · ${esc(v.date||"")}${v.subject?'  —  „'+esc(v.subject)+'“':""}`;
+  }
+  async function refreshVer(){const v=await api("/api/app/version").catch(()=>null);const el=$("#ver-line");if(el&&v)el.textContent=verText(v);}
   async function appUpdate(){
     const btn=$("#app-update"),out=$("#update-out");
     btn.disabled=true;const old=btn.textContent;btn.textContent="⏳ Prüfe…";
@@ -620,6 +626,7 @@
     if(r.success&&!r.up_to_date){$("#app-restart").classList.remove("hidden");toast("Update",r.message,"ok");}
     else if(r.success){toast("Update","Bereits aktuell","ok");}
     else{toast("Update",r.message||"fehlgeschlagen","crit");}
+    if(r.success)refreshVer();
   }
   async function appRestart(){
     toast("Neustart","Programm startet neu — Seite lädt gleich neu…","info");

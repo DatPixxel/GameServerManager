@@ -1015,6 +1015,32 @@ def create_web_app(app_instance, config_manager):
         config_manager.set_admin_password(new)
         return jsonify({'success': True, 'message': 'Passwort geändert.'})
 
+    @flask_app.route('/api/app/version')
+    def api_app_version():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        import subprocess as _sp
+        from gsm.paths import PROGRAM_DIR
+        from gsm.constants import VERSION as _V
+        info = {'version': _V, 'commit': '', 'date': '', 'subject': '', 'branch': ''}
+        try:
+            r = _sp.run(['git', 'log', '-1', '--format=%h|%cd|%s', '--date=format:%Y-%m-%d %H:%M'],
+                        cwd=PROGRAM_DIR, capture_output=True, text=True, timeout=15)
+            if r.returncode == 0 and r.stdout.strip():
+                parts = r.stdout.strip().split('|', 2)
+                info['commit'] = parts[0]
+                if len(parts) > 1:
+                    info['date'] = parts[1]
+                if len(parts) > 2:
+                    info['subject'] = parts[2]
+            rb = _sp.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                         cwd=PROGRAM_DIR, capture_output=True, text=True, timeout=15)
+            if rb.returncode == 0:
+                info['branch'] = rb.stdout.strip()
+        except Exception:
+            pass
+        return jsonify(info)
+
     @flask_app.route('/api/app/update', methods=['POST'])
     def api_app_update():
         if 'token' not in session or session['token'] not in valid_sessions:
