@@ -3294,12 +3294,22 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         load_file()
     
     def delete_server(self, server_id):
-        """Löscht einen Server"""
+        """Entfernt einen Server aus dem Manager (Dateien auf der Platte bleiben erhalten)"""
         t = self.config_manager.get_text
-        
-        if not messagebox.askyesno(t("warning"), t("confirm_delete")):
+
+        server_config = self.config_manager.servers.get(server_id, {})
+        name = server_config.get("name", server_id)
+        server_dir = os.path.join(PATHS["servers"], server_id)
+
+        msg = (
+            f"Server „{name}“ wirklich aus dem Manager entfernen?\n\n"
+            f"⚠️ Die Server-Dateien auf der Festplatte werden NICHT gelöscht "
+            f"und bleiben hier liegen:\n{server_dir}\n\n"
+            f"(Bei Bedarf kannst du den Ordner später manuell löschen.)"
+        )
+        if not messagebox.askyesno(t("warning"), msg):
             return
-        
+
         # Server stoppen falls läuft
         instance = self.server_instances.get(server_id)
         if instance and instance.is_running():
@@ -3350,10 +3360,16 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
                 self.select_server(server_id)
     
     def remove_mod(self, server_id, mod_id):
-        """Entfernt eine Mod"""
+        """Entfernt eine Mod (mit Rückfrage)"""
         server_config = self.config_manager.servers.get(server_id)
         if server_config and "mods" in server_config:
             if mod_id in server_config["mods"]:
+                mod_label = server_config.get("mod_names", {}).get(mod_id, mod_id)
+                if not messagebox.askyesno(
+                    "Mod entfernen",
+                    f"Mod „{mod_label}“ (ID {mod_id}) wirklich entfernen?"
+                ):
+                    return
                 server_config["mods"].remove(mod_id)
                 if isinstance(server_config.get("mod_names"), dict) and mod_id in server_config["mod_names"]:
                     del server_config["mod_names"][mod_id]

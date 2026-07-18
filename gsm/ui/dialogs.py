@@ -234,7 +234,36 @@ class AddServerDialog(ctk.CTkToplevel):
         if not name:
             messagebox.showwarning("Fehler", "Bitte Server-Namen eingeben!")
             return
-        
+
+        # Zahlenfelder robust prüfen (verhindert stillen ValueError-Crash)
+        def _parse_int(entry, label, minimum, maximum):
+            raw = entry.get().strip()
+            try:
+                val = int(raw)
+            except ValueError:
+                messagebox.showwarning(
+                    "Ungültige Eingabe",
+                    f"{label} muss eine ganze Zahl sein (eingegeben: „{raw}“)."
+                )
+                return None
+            if val < minimum or val > maximum:
+                messagebox.showwarning(
+                    "Ungültige Eingabe",
+                    f"{label} muss zwischen {minimum} und {maximum} liegen (eingegeben: {val})."
+                )
+                return None
+            return val
+
+        port = _parse_int(self.port_entry, "Port", 1, 65535)
+        if port is None:
+            return
+        query_port = _parse_int(self.query_port_entry, "Query-Port", 1, 65535)
+        if query_port is None:
+            return
+        max_players = _parse_int(self.players_entry, "Max. Spieler", 1, 1000)
+        if max_players is None:
+            return
+
         # Server-ID generieren
         server_id = name.lower().replace(" ", "_")
         server_id = re.sub(r'[^a-z0-9_]', '', server_id)
@@ -284,9 +313,9 @@ class AddServerDialog(ctk.CTkToplevel):
             "game": game,
             "map": map_param,
             "map_name": self.map_var.get() if "maps" in game_info else "",
-            "port": int(self.port_entry.get()),
-            "query_port": int(self.query_port_entry.get()),
-            "max_players": int(self.players_entry.get()),
+            "port": port,
+            "query_port": query_port,
+            "max_players": max_players,
             "server_password": self.server_pw_entry.get().strip(),
             "admin_password": self.admin_pw_entry.get().strip() or "admin",
             "mods": [],
