@@ -197,29 +197,36 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             self.withdraw()
             self.after(100, self.show_setup_wizard)
     
+    def _fit_geometry(self):
+        """Berechnet eine Fenstergröße, die auch auf kleine Bildschirme passt."""
+        self.update_idletasks()
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w = min(1400, int(sw * 0.92))
+        h = min(900, int(sh * 0.92))
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        return f"{w}x{h}+{x}+{y}"
+
     def setup_window_minimal(self):
         """Minimale Fenster-Einstellungen für Setup"""
         self.title(f"{APP_NAME} v{VERSION}")
-        self.geometry("1400x900")
+        self.geometry(self._fit_geometry())
+        self.minsize(1000, 640)
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
-    
+
     def setup_window(self):
         """Grundlegende Fenster-Einstellungen"""
         t = self.config_manager.get_text
-        
+
         self.title(f"{APP_NAME} v{VERSION}")
-        self.geometry("1400x900")
-        
-        # Fenster zentrieren
-        self.update_idletasks()
-        x = (self.winfo_screenwidth() - 1400) // 2
-        y = (self.winfo_screenheight() - 900) // 2
-        self.geometry(f"1400x900+{x}+{y}")
-        
+        self.geometry(self._fit_geometry())
+        self.minsize(1000, 640)
+        self.resizable(True, True)
+
         ctk.set_appearance_mode(self.config_manager.app_config.get("theme", "dark"))
         ctk.set_default_color_theme("blue")
-        
+
         # Close Event
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
     
@@ -2941,6 +2948,10 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             fg_color="gray",
             width=100
         ).pack(side="left")
+
+        # Tastatur: Enter = speichern, Escape = abbrechen, Fokus aufs erste Feld
+        from gsm.ui.dialog_utils import bind_dialog_keys
+        bind_dialog_keys(dialog, on_submit=save_changes, focus_widget=name_entry)
 
     # ==================== SERVER KLONEN ====================
     def show_clone_dialog(self, server_id):

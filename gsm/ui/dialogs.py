@@ -38,7 +38,11 @@ class AddServerDialog(ctk.CTkToplevel):
         self.geometry(f"550x750+{x}+{y}")
         
         self.create_ui()
-    
+
+        # Tastatur: Enter = hinzufügen, Escape = schließen, Fokus aufs erste Feld
+        from gsm.ui.dialog_utils import bind_dialog_keys
+        bind_dialog_keys(self, on_submit=self.add_server, focus_widget=self.name_entry)
+
     def create_ui(self):
         t = self.config_manager.get_text
         

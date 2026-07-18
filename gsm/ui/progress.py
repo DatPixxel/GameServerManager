@@ -25,6 +25,7 @@ class ProgressDialog(ctk.CTkToplevel):
 
         self._done = False
         self.protocol("WM_DELETE_WINDOW", self._on_close_request)
+        self.bind("<Escape>", lambda e: self._on_close_request())
 
         ctk.CTkLabel(
             self, text=title, font=(th.FONT, 16, "bold"), text_color=th.TEXT, anchor="w"

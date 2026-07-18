@@ -530,7 +530,11 @@ class InstallUpdateMixin:
             width=100,
             fg_color="gray"
         ).pack(side="right")
-    
+
+        # Tastatur: Enter = einloggen, Escape = abbrechen, Fokus aufs erste Feld
+        from gsm.ui.dialog_utils import bind_dialog_keys
+        bind_dialog_keys(dialog, on_submit=do_login, focus_widget=username_entry)
+
     def _do_server_install(self, server_id, server_config, steamcmd_exe, app_id, username, password):
         """Führt die eigentliche Server-Installation durch (mit Fortschritts-Dialog)"""
         from gsm.ui.progress import ProgressDialog
