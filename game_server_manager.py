@@ -393,7 +393,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # Add Server Button
         add_server_btn = ctk.CTkButton(
             self.sidebar,
-            text="+ Add Server",
+            text="+ Server hinzufügen",
             font=("Segoe UI", 13),
             height=40,
             fg_color="#2d5a2d",
@@ -441,7 +441,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         # Navigation Items
         nav_items = [
             ("📊", "Dashboard", "dashboard", self.nav_show_dashboard),
-            ("🖥️", "Servers", "servers", self.nav_show_servers),
+            ("🖥️", "Server", "servers", self.nav_show_servers),
             ("🔧", "Tools", "tools", self.nav_show_tools),
         ]
         
@@ -504,7 +504,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
         
         ctk.CTkLabel(
             header,
-            text=f"🟢 {running} Online  |  📦 {total} Total",
+            text=f"🟢 {running} online  |  📦 {total} gesamt",
             font=("Segoe UI", 13),
             text_color="#888888"
         ).pack(side="right", padx=20)
@@ -1760,7 +1760,7 @@ class GameServerManagerApp(TeamSpeakServicesMixin, BackupsMixin, InstallUpdateMi
             
             ctk.CTkButton(
                 add_frame,
-                text="+ Add",
+                text="+ Hinzufügen",
                 width=60,
                 height=30,
                 font=("Segoe UI", 12),

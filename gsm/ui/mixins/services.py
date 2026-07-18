@@ -292,6 +292,11 @@ class TeamSpeakServicesMixin:
         dialog = ctk.CTkToplevel(self)
         dialog.title("Chat & Stream Manager")
         dialog.geometry("760x460")
+        dialog.transient(self)
+        dialog.update_idletasks()
+        dialog.geometry(f"760x460+{(dialog.winfo_screenwidth()-760)//2}+{(dialog.winfo_screenheight()-460)//2}")
+        dialog.grab_set()
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
 
         ctk.CTkLabel(dialog, text="💬 Chat + Stream", font=("Segoe UI", 24, "bold"), text_color="#4c9aff").pack(pady=(18, 8))
         ctk.CTkLabel(
@@ -361,6 +366,11 @@ class TeamSpeakServicesMixin:
         dialog = ctk.CTkToplevel(self)
         dialog.title("TeamSpeak Server")
         dialog.geometry("940x700")
+        dialog.transient(self)
+        dialog.update_idletasks()
+        dialog.geometry(f"940x700+{(dialog.winfo_screenwidth()-940)//2}+{(dialog.winfo_screenheight()-700)//2}")
+        dialog.grab_set()
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
 
         cfg = self.get_teamspeak3_config()
 
