@@ -30,3 +30,4 @@ _cleanup_lists/
 
 # Build-Log
 build_log.txt
+*.spec.bak

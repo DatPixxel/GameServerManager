@@ -3,15 +3,17 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('templates', 'templates'), ('static', 'static')]
 binaries = []
-hiddenimports = []
+hiddenimports = ['app_web', 'game_server_manager', 'gsm.core']
 tmp_ret = collect_all('customtkinter')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('flask')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('webview')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['game_server_manager.py'],
+    ['run.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
