@@ -386,7 +386,16 @@
     const s=await api("/api/settings").catch(()=>({}));
     const d=s.discord||{};
     $("#content").innerHTML=`<div class="view" style="max-width:720px">
-      <div class="sec-h"><h2>Allgemein</h2></div>
+      <div class="sec-h"><h2>Programm-Update</h2></div>
+      <div class="kvc" style="display:flex;flex-direction:column;gap:12px">
+        <p style="font-size:13.5px;color:var(--muted);margin:0">Holt die neueste Version per <span class="mono">git pull</span> von GitHub. Danach einmal neu starten, damit die Änderungen aktiv werden.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary sm" id="app-update">🔄 Nach Updates suchen &amp; laden</button>
+          <button class="btn ghost sm hidden" id="app-restart">↻ Jetzt neu starten</button>
+        </div>
+        <pre id="update-out" class="logbox hidden" style="height:auto;max-height:220px;margin:0"></pre>
+      </div>
+      <div class="sec-h" style="margin-top:26px"><h2>Allgemein</h2></div>
       <div class="kvc" style="display:flex;flex-direction:column;gap:14px">
         <div class="field"><label>Web-Port (nach Neustart aktiv)</label><input id="set-port" class="modin" style="width:160px" value="${esc(s.web_port||5001)}"></div>
         <div class="field"><label>Sprache</label><select id="set-lang" class="modin" style="width:200px"><option value="de"${s.language==="de"?" selected":""}>Deutsch</option><option value="en"${s.language==="en"?" selected":""}>English</option></select></div>
@@ -593,12 +602,30 @@
     if(e.target.closest("#save-general")){saveGeneral();return;}
     if(e.target.closest("#save-discord")){saveDiscord();return;}
     if(e.target.closest("#save-pw")){savePassword();return;}
+    if(e.target.closest("#app-update")){appUpdate();return;}
+    if(e.target.closest("#app-restart")){appRestart();return;}
     // Server-Einstellungen speichern
     if(e.target.closest("#save-srv")){saveServerSettings();return;}
     if(e.target.closest("#make-backup")){makeBackup();return;}
     if(e.target.closest("#emptyadd")){openModal();return;}
   });
 
+  async function appUpdate(){
+    const btn=$("#app-update"),out=$("#update-out");
+    btn.disabled=true;const old=btn.textContent;btn.textContent="⏳ Prüfe…";
+    const r=await api("/api/app/update",{method:"POST"}).catch(()=>null);
+    btn.disabled=false;btn.textContent=old;
+    if(!r){toast("Update","Anfrage fehlgeschlagen","crit");return;}
+    out.classList.remove("hidden");out.textContent=r.output||r.message||"";
+    if(r.success&&!r.up_to_date){$("#app-restart").classList.remove("hidden");toast("Update",r.message,"ok");}
+    else if(r.success){toast("Update","Bereits aktuell","ok");}
+    else{toast("Update",r.message||"fehlgeschlagen","crit");}
+  }
+  async function appRestart(){
+    toast("Neustart","Programm startet neu — Seite lädt gleich neu…","info");
+    await api("/api/app/restart",{method:"POST"}).catch(()=>{});
+    setTimeout(()=>location.reload(),4500);
+  }
   async function saveGeneral(){
     const body={web_port:parseInt($("#set-port").value,10)||5001,language:$("#set-lang").value,auto_start_servers:$("#set-autostart").checked};
     const r=await api("/api/settings",{method:"POST",body:JSON.stringify(body)}).catch(()=>null);

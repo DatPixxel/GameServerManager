@@ -1015,6 +1015,50 @@ def create_web_app(app_instance, config_manager):
         config_manager.set_admin_password(new)
         return jsonify({'success': True, 'message': 'Passwort geändert.'})
 
+    @flask_app.route('/api/app/update', methods=['POST'])
+    def api_app_update():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        import subprocess as _sp
+        from gsm.paths import PROGRAM_DIR
+        try:
+            r = _sp.run(['git', 'pull', '--ff-only'], cwd=PROGRAM_DIR,
+                        capture_output=True, text=True, timeout=120)
+            out = ((r.stdout or '') + (r.stderr or '')).strip()
+            if r.returncode != 0:
+                return jsonify({'success': False, 'message': 'git pull fehlgeschlagen (lokale Änderungen?).', 'output': out})
+            low = out.lower()
+            up_to_date = ('up to date' in low) or ('up-to-date' in low) or ('aktuell' in low)
+            return jsonify({
+                'success': True, 'up_to_date': up_to_date, 'output': out,
+                'message': 'Bereits auf dem neuesten Stand.' if up_to_date
+                           else 'Update geladen. Zum Übernehmen bitte neu starten.'
+            })
+        except FileNotFoundError:
+            return jsonify({'success': False, 'message': 'git ist auf diesem System nicht verfügbar.'})
+        except _sp.TimeoutExpired:
+            return jsonify({'success': False, 'message': 'git pull hat zu lange gedauert (Timeout).'})
+        except Exception as e:
+            return jsonify({'success': False, 'message': str(e)})
+
+    @flask_app.route('/api/app/restart', methods=['POST'])
+    def api_app_restart():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        import os as _os
+        import sys as _sys
+        import time as _time
+
+        def _restart():
+            _time.sleep(0.6)
+            try:
+                _os.execv(_sys.executable, [_sys.executable] + _sys.argv)
+            except Exception:
+                _os._exit(0)
+
+        threading.Thread(target=_restart, daemon=True).start()
+        return jsonify({'success': True, 'message': 'Neustart wird ausgeführt …'})
+
     @flask_app.route('/api/status')
     def api_status():
         if 'token' not in session or session['token'] not in valid_sessions:
