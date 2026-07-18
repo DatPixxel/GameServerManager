@@ -1085,6 +1085,50 @@ def create_web_app(app_instance, config_manager):
         threading.Thread(target=_restart, daemon=True).start()
         return jsonify({'success': True, 'message': 'Neustart wird ausgeführt …'})
 
+    @flask_app.route('/api/app/update-check')
+    def api_update_check():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        import sys as _sys
+        from gsm.updater import AutoUpdater
+        res = AutoUpdater().check_for_updates()
+        res['frozen'] = bool(getattr(_sys, 'frozen', False))
+        return jsonify(res)
+
+    @flask_app.route('/api/app/exe-update', methods=['POST'])
+    def api_exe_update():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        import sys as _sys
+        import os as _os
+        import time as _time
+        if not getattr(_sys, 'frozen', False):
+            return jsonify({'success': False,
+                            'message': 'Nur in der .exe-Version verfügbar (Code-Version: git pull nutzen).'})
+        from gsm.updater import AutoUpdater
+        up = AutoUpdater()
+        res = up.check_for_updates()
+        if res.get('error'):
+            return jsonify({'success': False, 'message': res['error']})
+        if not res.get('available'):
+            return jsonify({'success': True, 'up_to_date': True, 'latest': res.get('latest'),
+                            'message': 'Bereits aktuell.'})
+        dl = up.download_update()
+        if not dl.get('success'):
+            return jsonify({'success': False, 'message': dl.get('error', 'Download fehlgeschlagen')})
+        inst = up.install_update(dl['file'])
+        if not inst.get('success'):
+            return jsonify({'success': False, 'message': inst.get('error', 'Installation fehlgeschlagen')})
+
+        # Der Update-Batch läuft jetzt und wartet, dass sich diese .exe beendet.
+        # Nach der Antwort das Programm beenden, damit der Batch tauschen + neu starten kann.
+        def _bye():
+            _time.sleep(1.3)
+            _os._exit(0)
+        threading.Thread(target=_bye, daemon=True).start()
+        return jsonify({'success': True, 'installing': True, 'latest': res.get('latest'),
+                        'message': f"Update v{res.get('latest')} wird installiert – das Programm startet gleich neu."})
+
     @flask_app.route('/api/status')
     def api_status():
         if 'token' not in session or session['token'] not in valid_sessions:
