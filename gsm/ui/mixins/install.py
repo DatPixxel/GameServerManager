@@ -532,13 +532,21 @@ class InstallUpdateMixin:
         ).pack(side="right")
     
     def _do_server_install(self, server_id, server_config, steamcmd_exe, app_id, username, password):
-        """Führt die eigentliche Server-Installation durch"""
+        """Führt die eigentliche Server-Installation durch (mit Fortschritts-Dialog)"""
+        from gsm.ui.progress import ProgressDialog
+        progress = ProgressDialog(
+            self,
+            title=f"Installiere {server_config.get('game', 'Server')}",
+            status="Starte SteamCMD…"
+        )
+
         def do_install():
+            instance = self.server_instances.get(server_id)
             try:
-                instance = self.server_instances.get(server_id)
                 if instance:
                     instance.log(f"📥 Installiere {server_config['game']}...")
-                
+                progress.append_log(f"📥 Installiere {server_config['game']}…")
+
                 server_dir = os.path.join(PATHS["servers"], server_id)
                 os.makedirs(server_dir, exist_ok=True)
                 
@@ -550,9 +558,10 @@ class InstallUpdateMixin:
                     cmd_list.extend(["+login", username, password])
                 cmd_list.extend(["+app_update", str(app_id), "validate", "+quit"])
                 
+                progress.set_status("SteamCMD lädt die Server-Dateien… das kann einige Minuten dauern.")
                 if instance:
                     instance.log(f"🔧 Befehl: steamcmd +force_install_dir ... +app_update {app_id}")
-                
+
                 # Für Steam Guard: Konsole anzeigen wenn Login erforderlich
                 if os.name == 'nt':
                     if username != "anonymous":
@@ -590,9 +599,11 @@ class InstallUpdateMixin:
                 for line in process.stdout:
                     line_stripped = line.strip()
                     output_lines.append(line_stripped)
+                    if line_stripped:
+                        progress.append_log(line_stripped)
                     if instance:
                         instance.log(line_stripped)
-                    
+
                     # Erfolg erkennen anhand der SteamCMD Ausgabe
                     if "Success!" in line and "fully installed" in line:
                         install_success = True
@@ -617,15 +628,19 @@ class InstallUpdateMixin:
                     self.config_manager.save_servers()
                     if instance:
                         instance.log("✅ Installation abgeschlossen!")
+                    progress.finish(True, "✅ Installation abgeschlossen!")
                     self.after(0, lambda: self.select_server(server_id))
                 else:
                     if instance:
                         instance.log(f"❌ Installation fehlgeschlagen! (Exit Code: {process.returncode})")
-                
+                    progress.finish(False, f"❌ Installation fehlgeschlagen (Exit-Code {process.returncode}). Details siehe Log oben.")
+
             except Exception as e:
+                err = str(e)
                 if instance:
-                    instance.log(f"❌ Fehler: {str(e)}")
-        
+                    instance.log(f"❌ Fehler: {err}")
+                progress.finish(False, f"❌ Fehler: {err}")
+
         threading.Thread(target=do_install, daemon=True).start()
     
     def install_steamcmd(self, callback=None):

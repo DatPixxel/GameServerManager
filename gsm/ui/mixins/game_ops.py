@@ -146,25 +146,35 @@ class GameServerOpsMixin:
         ).pack(side="right", padx=10)
     
     def _do_minecraft_forge_install(self, server_id, mc_version, forge_version, ram):
-        """Führt die Minecraft Forge Installation durch"""
+        """Führt die Minecraft Forge Installation durch (mit Fortschritts-Dialog)"""
+        from gsm.ui.progress import ProgressDialog
+        progress = ProgressDialog(
+            self,
+            title=f"Installiere Minecraft {mc_version} (Forge {forge_version})",
+            status="Prüfe Java…"
+        )
+
         def do_install():
+            instance = self.server_instances.get(server_id)
             try:
-                instance = self.server_instances.get(server_id)
                 server_dir = os.path.join(PATHS["servers"], server_id)
                 os.makedirs(server_dir, exist_ok=True)
-                
+
                 if instance:
                     instance.log(f"⛏️ Installiere Minecraft {mc_version} mit Forge {forge_version}...")
-                
+                progress.append_log(f"⛏️ Minecraft {mc_version} · Forge {forge_version}")
+
                 # 1. Java prüfen
                 if instance:
                     instance.log("🔍 Prüfe Java Installation...")
-                
+                progress.append_log("🔍 Prüfe Java…")
+
                 java_path = self._find_java()
                 if not java_path:
                     if instance:
                         instance.log("❌ Java nicht gefunden!")
                         instance.log("💡 Bitte Java 17+ installieren: https://adoptium.net/")
+                    progress.finish(False, "❌ Java nicht gefunden. Bitte Java 17+ installieren (adoptium.net).")
                     return
                 
                 if instance:
@@ -179,7 +189,9 @@ class GameServerOpsMixin:
                 if instance:
                     instance.log(f"📥 Lade Forge Installer herunter...")
                     instance.log(f"   URL: {installer_url}")
-                
+                progress.set_status("Lade Forge-Installer herunter…")
+                progress.append_log("📥 Lade Forge-Installer…")
+
                 try:
                     import urllib.request
                     urllib.request.urlretrieve(installer_url, installer_path)
@@ -187,15 +199,17 @@ class GameServerOpsMixin:
                     if instance:
                         instance.log(f"❌ Download fehlgeschlagen: {e}")
                         instance.log("💡 Versuche alternativen Download...")
-                    
+                    progress.append_log("⚠️ Erster Download fehlgeschlagen, versuche Alternative…")
+
                     # Alternativer URL für ältere Versionen
                     alt_url = f"https://files.minecraftforge.net/maven/net/minecraftforge/forge/{forge_full_version}/forge-{forge_full_version}-installer.jar"
                     try:
                         urllib.request.urlretrieve(alt_url, installer_path)
-                    except:
+                    except Exception:
                         if instance:
                             instance.log(f"❌ Auch alternativer Download fehlgeschlagen!")
                             instance.log("💡 Bitte manuell herunterladen von: https://files.minecraftforge.net/")
+                        progress.finish(False, "❌ Forge-Installer konnte nicht geladen werden. Version prüfen oder manuell laden.")
                         return
                 
                 if instance:
@@ -204,7 +218,8 @@ class GameServerOpsMixin:
                 # 3. Forge Installer ausführen
                 if instance:
                     instance.log("🔧 Führe Forge Installer aus (kann 1-3 Minuten dauern)...")
-                
+                progress.set_status("Führe Forge-Installer aus… (kann 1-3 Minuten dauern)")
+
                 install_cmd = [java_path, "-jar", installer_path, "--installServer"]
                 
                 process = subprocess.Popen(
@@ -218,16 +233,17 @@ class GameServerOpsMixin:
                 
                 for line in process.stdout:
                     line_stripped = line.strip()
-                    if line_stripped and instance:
-                        # Nur wichtige Zeilen loggen
-                        if any(x in line_stripped.lower() for x in ["download", "install", "extract", "error", "success", "complete"]):
+                    if line_stripped and any(x in line_stripped.lower() for x in ["download", "install", "extract", "error", "success", "complete"]):
+                        progress.append_log(f"   {line_stripped}")
+                        if instance:
                             instance.log(f"   {line_stripped}")
-                
+
                 process.wait()
-                
+
                 if process.returncode != 0:
                     if instance:
                         instance.log(f"❌ Forge Installation fehlgeschlagen (Code: {process.returncode})")
+                    progress.finish(False, f"❌ Forge-Installer fehlgeschlagen (Exit-Code {process.returncode}).")
                     return
                 
                 if instance:
@@ -315,16 +331,19 @@ spawn-protection=0
                     instance.log("💡 Kopiere deine .jar Mod-Dateien in den Mods-Ordner")
                     instance.log("")
                     instance.log("🎮 Server kann jetzt gestartet werden!")
-                
+
+                progress.finish(True, "✅ Minecraft-Forge-Server installiert! Mods gehören in den mods-Ordner.")
                 # UI aktualisieren
                 self.after(0, lambda: self.select_server(server_id))
-                
+
             except Exception as e:
+                err = str(e)
                 if instance:
-                    instance.log(f"❌ Fehler: {str(e)}")
+                    instance.log(f"❌ Fehler: {err}")
                 import traceback
                 traceback.print_exc()
-        
+                progress.finish(False, f"❌ Fehler: {err}")
+
         threading.Thread(target=do_install, daemon=True).start()
     
     def _find_java(self):
@@ -584,13 +603,24 @@ spawn-protection=0
         if not server_config or server_config.get("game") != "Conan Exiles" or not instance:
             return
 
+        from gsm.ui.progress import ProgressDialog
+        progress = ProgressDialog(
+            self, title="Conan Mod-Sync",
+            status="Lade/aktualisiere Mods über SteamCMD… das kann dauern."
+        )
+
         def do_sync():
-            ok = instance.sync_conan_mods()
-            self.after(0, lambda: self.select_server(server_id))
-            if ok:
-                self.after(0, lambda: messagebox.showinfo("Conan Mods", "Conan Mod-Sync abgeschlossen."))
-            else:
-                self.after(0, lambda: messagebox.showwarning("Conan Mods", "Conan Mod-Sync fehlgeschlagen. Bitte Logs prüfen."))
+            try:
+                progress.append_log("🔄 Starte Conan Mod-Sync…")
+                ok = instance.sync_conan_mods()
+                self.after(0, lambda: self.select_server(server_id))
+                if ok:
+                    progress.finish(True, "✅ Conan Mod-Sync abgeschlossen.")
+                else:
+                    progress.finish(False, "❌ Conan Mod-Sync fehlgeschlagen. Bitte Logs prüfen.")
+            except Exception as e:
+                err = str(e)
+                progress.finish(False, f"❌ Fehler: {err}")
 
         threading.Thread(target=do_sync, daemon=True).start()
     
