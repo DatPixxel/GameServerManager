@@ -368,7 +368,8 @@ def create_web_app(app_instance, config_manager):
                 'conan_mod_status': conan_status,
                 'auto_restart': server_config.get('auto_restart', True),
                 'auto_backup': server_config.get('auto_backup', False),
-                'backup_interval': server_config.get('backup_interval_hours', 0)
+                'backup_interval': server_config.get('backup_interval_hours', 0),
+                'max_backups': server_config.get('max_backups', 10)
             })
         return jsonify({'servers': servers})
 
@@ -915,6 +916,105 @@ def create_web_app(app_instance, config_manager):
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)})
     
+    @flask_app.route('/api/server/<server_id>/settings', methods=['POST'])
+    def api_server_settings(server_id):
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        cfg = config_manager.servers.get(server_id)
+        if not cfg:
+            return jsonify({'success': False, 'message': 'Server nicht gefunden'}), 404
+        data = request.get_json(silent=True) or {}
+
+        def _int(v, default):
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                return default
+
+        name = str(data.get('name', cfg.get('name', ''))).strip()
+        if not name:
+            return jsonify({'success': False, 'message': 'Name darf nicht leer sein.'}), 400
+        port = _int(data.get('port'), cfg.get('port', 0))
+        query_port = _int(data.get('query_port'), cfg.get('query_port', 0))
+        max_players = _int(data.get('max_players'), cfg.get('max_players', 10))
+        if not (1 <= port <= 65535) or not (1 <= query_port <= 65535):
+            return jsonify({'success': False, 'message': 'Ports müssen zwischen 1 und 65535 liegen.'}), 400
+        if max_players < 1:
+            return jsonify({'success': False, 'message': 'Max. Spieler muss größer als 0 sein.'}), 400
+
+        cfg['name'] = name
+        cfg['port'] = port
+        cfg['query_port'] = query_port
+        cfg['max_players'] = max_players
+        cfg['auto_restart'] = bool(data.get('auto_restart', cfg.get('auto_restart', True)))
+        cfg['auto_backup'] = bool(data.get('auto_backup', cfg.get('auto_backup', False)))
+        cfg['backup_interval_hours'] = _int(data.get('backup_interval_hours'), cfg.get('backup_interval_hours', 3))
+        cfg['max_backups'] = _int(data.get('max_backups'), cfg.get('max_backups', 10))
+        # Passwörter nur ändern, wenn ausgefüllt (leer = unverändert)
+        sp = data.get('server_password')
+        if sp:
+            cfg['server_password'] = sp
+        ap = data.get('admin_password')
+        if ap:
+            cfg['admin_password'] = ap
+        config_manager.save_servers()
+        inst = app_instance.server_instances.get(server_id)
+        if inst:
+            inst.config = cfg
+        return jsonify({'success': True, 'message': 'Einstellungen gespeichert.'})
+
+    @flask_app.route('/api/settings', methods=['GET', 'POST'])
+    def api_settings():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        ac = config_manager.app_config
+        if request.method == 'GET':
+            disc = ac.get('discord', {})
+            return jsonify({
+                'language': ac.get('language', 'de'),
+                'auto_start_servers': ac.get('auto_start_servers', False),
+                'web_port': ac.get('web', {}).get('port', 5001),
+                'discord': {
+                    'enabled': disc.get('enabled', False),
+                    'webhook_url': disc.get('webhook_url', ''),
+                    'notify_start': disc.get('notify_start', True),
+                    'notify_stop': disc.get('notify_stop', True),
+                    'notify_crash': disc.get('notify_crash', True),
+                    'notify_backup': disc.get('notify_backup', True),
+                },
+                'chat_stream': ac.get('chat_stream', {}),
+                'teamspeak3': dict(ac.get('teamspeak3', {})),
+            })
+        data = request.get_json(silent=True) or {}
+        if 'language' in data:
+            ac['language'] = str(data['language'])
+        if 'auto_start_servers' in data:
+            ac['auto_start_servers'] = bool(data['auto_start_servers'])
+        if 'web_port' in data:
+            try:
+                p = int(data['web_port'])
+                if 1 <= p <= 65535:
+                    ac.setdefault('web', {})['port'] = p
+            except (ValueError, TypeError):
+                pass
+        if isinstance(data.get('discord'), dict):
+            ac.setdefault('discord', {}).update(data['discord'])
+        config_manager.save_app_config()
+        return jsonify({'success': True, 'message': 'Einstellungen gespeichert.'})
+
+    @flask_app.route('/api/password', methods=['POST'])
+    def api_change_password():
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+        data = request.get_json(silent=True) or {}
+        if not config_manager.verify_password(data.get('current', '')):
+            return jsonify({'success': False, 'message': 'Aktuelles Passwort ist falsch.'}), 403
+        new = data.get('new', '')
+        if len(new) < 6:
+            return jsonify({'success': False, 'message': 'Neues Passwort muss mindestens 6 Zeichen haben.'}), 400
+        config_manager.set_admin_password(new)
+        return jsonify({'success': True, 'message': 'Passwort geändert.'})
+
     @flask_app.route('/api/status')
     def api_status():
         if 'token' not in session or session['token'] not in valid_sessions:

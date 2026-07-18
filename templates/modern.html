@@ -199,6 +199,7 @@
       <button data-view="dashboard" class="active"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
       <button data-view="servers"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r=".6"/><circle cx="7" cy="17" r=".6"/></svg>Server <span class="count" id="navcount">0</span></button>
       <button data-view="tools"><svg class="ic" viewBox="0 0 24 24"><path d="M10.3 3.2a1.9 1.9 0 0 1 3.4 0l.4.9a1.9 1.9 0 0 0 2.3 1l1-.3a1.9 1.9 0 0 1 1.9 3l-.6.7a1.9 1.9 0 0 0 0 2.6l.6.7a1.9 1.9 0 0 1-1.9 3l-1-.3a1.9 1.9 0 0 0-2.3 1l-.4.9a1.9 1.9 0 0 1-3.4 0l-.4-.9a1.9 1.9 0 0 0-2.3-1l-1 .3a1.9 1.9 0 0 1-1.9-3l.6-.7a1.9 1.9 0 0 0 0-2.6l-.6-.7a1.9 1.9 0 0 1 1.9-3l1 .3a1.9 1.9 0 0 0 2.3-1z"/><circle cx="12" cy="12" r="2.5"/></svg>Tools</button>
+      <button data-view="settings"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.4-2.6h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg>Einstellungen</button>
     </nav>
     <div class="spacer"></div>
     <div class="bottom">
@@ -322,17 +323,73 @@
       <button class="btn primary" id="emptyadd">＋ Ersten Server anlegen</button></div>`;
   }
 
-  const TOOLS=[["💾","Backups","Öffne einen Server und verwalte dort seine Backups.","servers"],
-    ["🔄","Updates","Aktualisiere Server über die Detail-Ansicht.","servers"],
-    ["🎮","RCON / Konsole","Im Desktop-Tool: RCON-Dashboard mit Karte.",null],
-    ["💬","Chat & Stream","Textchat + Screen-Sharing (falls aktiviert).","/chat"],
-    ["🌐","Diese Web-Oberfläche","Läuft bereits — vom Handy im selben Netz erreichbar.",null],
-    ["🔔","Discord","Benachrichtigungen im Desktop-Tool einrichten.",null]];
-  function renderTools(){
-    $("#vtitle").textContent="Tools";
-    $("#vsub").textContent="Zusatzfunktionen & Werkzeuge";
-    $("#content").innerHTML=`<div class="view"><div class="sec-h"><h2>Werkzeuge</h2></div>
-      <div class="tools">${TOOLS.map((t,i)=>`<div class="tool" data-ti="${i}"><div class="ti">${t[0]}</div><h3>${t[1]}</h3><p>${t[2]}</p></div>`).join("")}</div></div>`;
+  async function renderTools(){
+    $("#vtitle").textContent="Tools & Dienste";
+    $("#vsub").textContent="Zusatzdienste starten und verwalten";
+    const st=await api("/api/services/status").catch(()=>({}));
+    const tsRunning=!!st.teamspeak_running, chatOn=!!st.chat_enabled;
+    $("#content").innerHTML=`<div class="view">
+      <div class="sec-h"><h2>Dienste</h2></div>
+      <div class="tools">
+        <div class="tool" style="cursor:default">
+          <div class="ti">🎙️</div><h3>TeamSpeak-Server</h3>
+          <p>${tsRunning?'<span style="color:var(--ok)">● Läuft</span>':'<span style="color:var(--faint)">○ Gestoppt</span>'} · ${esc(st.teamspeak_label||"TS3")}</p>
+          <div style="margin-top:12px">${tsRunning?'<button class="btn danger sm" data-svc="teamspeak/stop">Stoppen</button>':'<button class="btn primary sm" data-svc="teamspeak/start">Starten</button>'}</div>
+        </div>
+        <div class="tool" style="cursor:default">
+          <div class="ti">💬</div><h3>Chat &amp; Stream</h3>
+          <p>${chatOn?'<span style="color:var(--ok)">● Aktiv</span>':'<span style="color:var(--faint)">○ Aus</span>'} · Textchat + Screen-Sharing</p>
+          <div style="margin-top:12px">${chatOn?'<button class="btn danger sm" data-svc="chat/stop">Deaktivieren</button> <a class="btn ghost sm" href="/chat">Öffnen</a>':'<button class="btn primary sm" data-svc="chat/start">Aktivieren</button>'}</div>
+        </div>
+        <div class="tool" style="cursor:default">
+          <div class="ti">🌐</div><h3>Web-Zugriff</h3>
+          <p>Diese Oberfläche läuft bereits. Im selben Netz vom Handy erreichbar.</p>
+          <div style="margin-top:12px"><button class="btn ghost sm" id="copyurl">Adresse kopieren</button></div>
+        </div>
+      </div>
+      <div class="sec-h" style="margin-top:26px"><h2>Weitere Werkzeuge</h2></div>
+      <div class="tools">
+        <div class="tool" data-goto="servers"><div class="ti">💾</div><h3>Backups</h3><p>Server öffnen → Tab „Backups": erstellen, wiederherstellen, löschen.</p></div>
+        <div class="tool" data-goto="servers"><div class="ti">🔄</div><h3>Updates</h3><p>Server öffnen → „Update" für SteamCMD-Aktualisierung.</p></div>
+        <div class="tool" data-goto="settings"><div class="ti">🔔</div><h3>Discord</h3><p>Benachrichtigungen bei Start/Stop/Crash einrichten.</p></div>
+      </div>
+    </div>`;
+  }
+
+  async function renderSettings(){
+    $("#vtitle").textContent="Einstellungen";
+    $("#vsub").textContent="Programm-Einstellungen";
+    const s=await api("/api/settings").catch(()=>({}));
+    const d=s.discord||{};
+    $("#content").innerHTML=`<div class="view" style="max-width:720px">
+      <div class="sec-h"><h2>Allgemein</h2></div>
+      <div class="kvc" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label>Web-Port (nach Neustart aktiv)</label><input id="set-port" class="modin" style="width:160px" value="${esc(s.web_port||5001)}"></div>
+        <div class="field"><label>Sprache</label><select id="set-lang" class="modin" style="width:200px"><option value="de"${s.language==="de"?" selected":""}>Deutsch</option><option value="en"${s.language==="en"?" selected":""}>English</option></select></div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--text)"><input type="checkbox" id="set-autostart" ${s.auto_start_servers?"checked":""}> Server beim Start automatisch hochfahren</label>
+        <div><button class="btn primary sm" id="save-general">Speichern</button></div>
+      </div>
+
+      <div class="sec-h" style="margin-top:26px"><h2>Discord-Benachrichtigungen</h2></div>
+      <div class="kvc" style="display:flex;flex-direction:column;gap:14px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:13.5px"><input type="checkbox" id="dc-en" ${d.enabled?"checked":""}> Discord aktiviert</label>
+        <div class="field"><label>Webhook-URL</label><input id="dc-url" class="modin" style="width:100%" placeholder="https://discord.com/api/webhooks/…" value="${esc(d.webhook_url||"")}"></div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">
+          <label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="dc-start" ${d.notify_start?"checked":""}>Start</label>
+          <label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="dc-stop" ${d.notify_stop?"checked":""}>Stop</label>
+          <label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="dc-crash" ${d.notify_crash?"checked":""}>Absturz</label>
+          <label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="dc-backup" ${d.notify_backup?"checked":""}>Backup</label>
+        </div>
+        <div><button class="btn primary sm" id="save-discord">Speichern</button></div>
+      </div>
+
+      <div class="sec-h" style="margin-top:26px"><h2>Web-Passwort ändern</h2></div>
+      <div class="kvc" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label>Aktuelles Passwort</label><input id="pw-cur" type="password" class="modin" style="width:100%"></div>
+        <div class="field"><label>Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" class="modin" style="width:100%"></div>
+        <div><button class="btn primary sm" id="save-pw">Passwort ändern</button></div>
+      </div>
+    </div>`;
   }
 
   // ---------- Detail ----------
@@ -353,7 +410,7 @@
     else if(s.running) actionBtns=`<button class="btn danger sm" data-a="stop" data-id="${s.id}">■ Stoppen</button><button class="btn ghost sm" data-a="restart" data-id="${s.id}">↻ Neustart</button>`;
     else actionBtns=`<button class="btn primary sm" data-a="start" data-id="${s.id}">▶ Starten</button>`;
     actionBtns+=`<button class="btn ghost sm" data-a="update" data-id="${s.id}">⟳ Update</button><button class="btn ghost sm" data-a="backup" data-id="${s.id}">💾 Backup</button>`;
-    const tabs=[["overview","Übersicht"],["logs","Logs"],["backups","Backups"],["configs","Konfiguration"],["mods","Mods"]];
+    const tabs=[["overview","Übersicht"],["settings","Einstellungen"],["logs","Logs"],["backups","Backups"],["configs","Konfiguration"],["mods","Mods"]];
     $("#content").innerHTML=`<div class="view">
       <button class="back" id="back"><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M15 18l-6-6 6-6"/></svg>Zurück</button>
       <div class="dhead"><div class="tile">${esc(s.icon)}</div>
@@ -376,6 +433,27 @@
         ["Auto-Backup",s.auto_backup?`alle ${s.backup_interval}h`:"Aus"],["Mods",Array.isArray(s.mods)?s.mods.length:0],["Installiert",s.installed?"Ja":"Nein"]];
       p.innerHTML=`<div class="panel"><div class="kv">${rows.map(r=>`<div class="kvc"><div class="k">${r[0]}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div></div>`;
     }
+    else if(state.tab==="settings"){
+      p.innerHTML=`<div class="panel" style="max-width:640px"><div class="kvc" style="display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label>Servername</label><input id="srv-name" class="modin" style="width:100%" value="${esc(s.name)}"></div>
+        <div class="row2">
+          <div class="field"><label>Port</label><input id="srv-port" class="modin" style="width:100%" value="${esc(s.port)}"></div>
+          <div class="field"><label>Query-Port</label><input id="srv-query" class="modin" style="width:100%" value="${esc(s.query_port)}"></div>
+        </div>
+        <div class="field"><label>Max. Spieler</label><input id="srv-max" class="modin" style="width:140px" value="${esc(s.max_players)}"></div>
+        <div class="row2">
+          <div class="field"><label>Server-Passwort (leer = unverändert)</label><input id="srv-spw" type="password" class="modin" style="width:100%" placeholder="••••"></div>
+          <div class="field"><label>Admin-Passwort (leer = unverändert)</label><input id="srv-apw" type="password" class="modin" style="width:100%" placeholder="••••"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13.5px"><input type="checkbox" id="srv-restart" ${s.auto_restart?"checked":""}> Automatischer Neustart bei Absturz</label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13.5px"><input type="checkbox" id="srv-backup" ${s.auto_backup?"checked":""}> Automatische Backups</label>
+        <div class="row2">
+          <div class="field"><label>Backup-Intervall (Stunden)</label><input id="srv-interval" class="modin" style="width:100%" value="${esc(s.backup_interval||0)}"></div>
+          <div class="field"><label>Max. Backups</label><input id="srv-maxbk" class="modin" style="width:100%" value="${esc(s.max_backups||10)}"></div>
+        </div>
+        <div><button class="btn primary sm" id="save-srv">Änderungen speichern</button></div>
+      </div></div>`;
+    }
     else if(state.tab==="logs"){
       const d=await api(`/api/server/${s.id}/logs`).catch(()=>({logs:[]}));
       const logs=(d.logs||[]);
@@ -386,9 +464,11 @@
     else if(state.tab==="backups"){
       const d=await api(`/api/server/${s.id}/backups`).catch(()=>({backups:[]}));
       const b=d.backups||[];
-      p.innerHTML=`<div class="panel">${b.length?`<div class="list">${b.map(x=>`<div class="li"><div><div class="lt">${esc(x.name)}</div><div class="ls">${esc(x.date)} · ${esc(x.size)}</div></div><div class="sp"></div>
+      p.innerHTML=`<div class="panel">
+        <div class="editrow"><button class="btn primary sm" id="make-backup">＋ Backup jetzt erstellen</button><span style="color:var(--faint);font-size:12px">${b.length} Backup(s)</span></div>
+        ${b.length?`<div class="list">${b.map(x=>`<div class="li"><div><div class="lt">${esc(x.name)}</div><div class="ls">${esc(x.date)} · ${esc(x.size)}</div></div><div class="sp"></div>
         <button class="btn ghost sm" data-restore="${esc(x.path)}">Wiederherstellen</button>
-        <button class="btn danger sm" data-delbk="${esc(x.path)}">Löschen</button></div>`).join("")}</div>`:'<div class="empty"><div class="big">💾</div><h3>Keine Backups</h3><p>Erstelle oben mit „Backup" das erste Backup dieses Servers.</p></div>'}</div>`;
+        <button class="btn danger sm" data-delbk="${esc(x.path)}">Löschen</button></div>`).join("")}</div>`:'<div class="empty"><div class="big">💾</div><h3>Noch keine Backups</h3><p>Erstelle oben das erste Backup dieses Servers.</p></div>'}</div>`;
     }
     else if(state.tab==="configs"){
       const d=await api(`/api/server/${s.id}/configs`).catch(()=>({configs:[]}));
@@ -452,6 +532,7 @@
     if(state.view==="dashboard")renderDashboard();
     else if(state.view==="servers")renderServers();
     else if(state.view==="tools")renderTools();
+    else if(state.view==="settings")renderSettings();
   }
 
   function setActiveNav(v){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));}
@@ -477,10 +558,57 @@
     if(e.target.closest("#addmod")){addMod();return;}
     const dm=e.target.closest("[data-delmod]");
     if(dm){delMod(dm.getAttribute("data-delmod"));return;}
-    const ti=e.target.closest("[data-ti]");
-    if(ti){const t=TOOLS[+ti.getAttribute("data-ti")];if(t[3]&&t[3].startsWith("/"))location.href=t[3];else if(t[3])go(t[3]);else toast(t[1],"Im Desktop-Tool verfügbar","info");return;}
+    // Tools: Dienste schalten
+    const svc=e.target.closest("[data-svc]");
+    if(svc){const path=svc.getAttribute("data-svc");api(`/api/services/${path}`,{method:"POST"}).then(r=>{toast("Dienst",r&&r.message||"aktualisiert",r&&r.success!==false?"ok":"crit");renderTools();});return;}
+    const goto=e.target.closest("[data-goto]");
+    if(goto){go(goto.getAttribute("data-goto"));return;}
+    if(e.target.closest("#copyurl")){navigator.clipboard&&navigator.clipboard.writeText(location.origin);toast("Kopiert",location.origin,"ok");return;}
+    // App-Einstellungen speichern
+    if(e.target.closest("#save-general")){saveGeneral();return;}
+    if(e.target.closest("#save-discord")){saveDiscord();return;}
+    if(e.target.closest("#save-pw")){savePassword();return;}
+    // Server-Einstellungen speichern
+    if(e.target.closest("#save-srv")){saveServerSettings();return;}
+    if(e.target.closest("#make-backup")){makeBackup();return;}
     if(e.target.closest("#emptyadd")){openModal();return;}
   });
+
+  async function saveGeneral(){
+    const body={web_port:parseInt($("#set-port").value,10)||5001,language:$("#set-lang").value,auto_start_servers:$("#set-autostart").checked};
+    const r=await api("/api/settings",{method:"POST",body:JSON.stringify(body)}).catch(()=>null);
+    toast("Einstellungen",r&&r.message||"gespeichert",r&&r.success?"ok":"crit");
+  }
+  async function saveDiscord(){
+    const body={discord:{enabled:$("#dc-en").checked,webhook_url:$("#dc-url").value.trim(),notify_start:$("#dc-start").checked,notify_stop:$("#dc-stop").checked,notify_crash:$("#dc-crash").checked,notify_backup:$("#dc-backup").checked}};
+    const r=await api("/api/settings",{method:"POST",body:JSON.stringify(body)}).catch(()=>null);
+    toast("Discord",r&&r.message||"gespeichert",r&&r.success?"ok":"crit");
+  }
+  async function savePassword(){
+    const cur=$("#pw-cur").value,nw=$("#pw-new").value;
+    if(nw.length<6){toast("Passwort","Mindestens 6 Zeichen","crit");return;}
+    const r=await api("/api/password",{method:"POST",body:JSON.stringify({current:cur,new:nw})}).catch(()=>null);
+    if(r&&r.success){$("#pw-cur").value="";$("#pw-new").value="";toast("Passwort","geändert","ok");}
+    else toast("Passwort",r&&r.message||"Fehler","crit");
+  }
+  async function saveServerSettings(){
+    const s=server();if(!s)return;
+    const g=id=>$("#"+id);
+    const body={name:g("srv-name").value.trim(),port:parseInt(g("srv-port").value,10),query_port:parseInt(g("srv-query").value,10),
+      max_players:parseInt(g("srv-max").value,10),auto_restart:g("srv-restart").checked,auto_backup:g("srv-backup").checked,
+      backup_interval_hours:parseInt(g("srv-interval").value,10)||0,max_backups:parseInt(g("srv-maxbk").value,10)||10};
+    const sp=g("srv-spw").value,ap=g("srv-apw").value;
+    if(sp)body.server_password=sp; if(ap)body.admin_password=ap;
+    const r=await api(`/api/server/${s.id}/settings`,{method:"POST",body:JSON.stringify(body)}).catch(()=>null);
+    if(r&&r.success){toast("Gespeichert",r.message||"","ok");await refresh();renderDetailShell();loadTab();}
+    else toast("Fehler",r&&r.message||"Speichern fehlgeschlagen","crit");
+  }
+  async function makeBackup(){
+    const s=server();if(!s)return;
+    toast(s.name,"Backup wird erstellt…","info");
+    await api(`/api/server/${s.id}/backup`,{method:"POST"}).catch(()=>null);
+    setTimeout(loadTab,1500);
+  }
 
   async function addMod(){
     const s=server();const id=$("#modid").value.trim();if(!id)return;
@@ -533,7 +661,8 @@
   async function tick(){await refresh();render();}
   (async function init(){
     await refresh();render();
-    timer=setInterval(async()=>{await refresh();if(!state.detail||state.tab==="overview")render();},5000);
+    // Auto-Refresh NUR für die Listen-Ansichten (damit Formulare nicht überschrieben werden)
+    timer=setInterval(async()=>{await refresh();if(!state.detail&&(state.view==="dashboard"||state.view==="servers"))render();},5000);
   })();
 })();
 </script>
