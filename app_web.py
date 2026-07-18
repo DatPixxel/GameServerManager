@@ -13,6 +13,23 @@ import sys
 import time
 import socket
 
+# Konsolen-Ausgabe robust machen (Windows-cp1252 kann keine Emojis)
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
+
+def _log(msg):
+    """Ausgabe, die niemals crasht (auch ohne/mit exotischer Konsole)."""
+    try:
+        print(msg)
+    except Exception:
+        pass
+
 
 def _port_open(port, host="127.0.0.1"):
     with socket.socket() as s:
@@ -26,9 +43,9 @@ def _port_open(port, host="127.0.0.1"):
 
 def _serve_forever(url):
     """Nur den Webserver laufen lassen (für Server ohne Desktop)."""
-    print(f"🌐 Web-Oberfläche läuft:  {url}")
-    print("   Im selben Netz erreichbar unter  http://<server-ip>:<port>")
-    print("   Zum Beenden: Strg+C")
+    _log(f"🌐 Web-Oberfläche läuft:  {url}")
+    _log("   Im selben Netz erreichbar unter  http://<server-ip>:<port>")
+    _log("   Zum Beenden: Strg+C")
     try:
         while True:
             time.sleep(1)
@@ -45,8 +62,8 @@ def main(window=True):
 
     base = load_base_dir()
     if not base:
-        print("❌ Kein Installationsordner konfiguriert.")
-        print("   Bitte zuerst einrichten:  python run.py  (bzw. python run.py --classic)")
+        _log("❌ Kein Installationsordner konfiguriert.")
+        _log("   Bitte zuerst einrichten:  python run.py  (bzw. python run.py --classic)")
         return 1
 
     set_base_dir(base)
@@ -55,7 +72,7 @@ def main(window=True):
     from gsm.core import GsmCore
     from gsm.web.server import start_web_server
 
-    print("🚀 Starte Backend …")
+    _log("🚀 Starte Backend …")
     core = GsmCore()
     port = core.config_manager.app_config.get("web", {}).get("port", 5001)
     start_web_server(core, core.config_manager)
@@ -76,7 +93,7 @@ def main(window=True):
     try:
         import webview
     except ImportError:
-        print("⚠️  pywebview ist nicht installiert  ->  für das native Fenster:  pip install pywebview")
+        _log("⚠️  pywebview ist nicht installiert  ->  für das native Fenster:  pip install pywebview")
         try:
             import webbrowser
             webbrowser.open(url)
@@ -84,7 +101,7 @@ def main(window=True):
             pass
         return _serve_forever(url)
 
-    print(f"🖥️  Öffne Fenster:  {url}")
+    _log(f"🖥️  Öffne Fenster:  {url}")
     webview.create_window(
         "Game Server Manager",
         url,

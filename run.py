@@ -11,6 +11,15 @@ Erststart: ist noch kein Installationsordner eingerichtet, öffnet sich einmalig
 import sys
 import os
 
+# Konsolen-Ausgabe robust machen (Windows-cp1252 kann keine Emojis -> sonst Crash)
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # Aktuelles Verzeichnis in den Importpfad
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
