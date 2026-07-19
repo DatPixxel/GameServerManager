@@ -147,7 +147,25 @@ class AutoUpdater:
                 return {'success': True, 'message': 'Update installiert (Entwicklungsmodus)'}
             
             working_dir = os.path.dirname(current_exe)
-            
+            exe_name = os.path.basename(current_exe)
+
+            # Die neue exe JETZT (das Programm laeuft noch) in den Programmordner kopieren –
+            # unter neuem Namen, damit nichts Gesperrtes beruehrt wird. Danach verifizieren.
+            # Der eigentliche Austausch ist dann nur ein Umbenennen (atomar, keine Beschaedigung).
+            staged = os.path.join(working_dir, exe_name + '.new')
+            try:
+                if os.path.exists(staged):
+                    os.remove(staged)
+                shutil.copy2(new_exe_path, staged)
+            except Exception as _e:
+                return {'error': f'Konnte Update nicht vorbereiten: {_e}'}
+            try:
+                if os.path.getsize(staged) != os.path.getsize(new_exe_path):
+                    os.remove(staged)
+                    return {'error': 'Update-Datei wurde beim Vorbereiten unvollstaendig – abgebrochen.'}
+            except Exception:
+                pass
+
             # Prüfe ob wir in einem geschützten Ordner sind (Program Files)
             program_files = os.environ.get('ProgramFiles', 'C:\\Program Files')
             program_files_x86 = os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)')
@@ -161,74 +179,42 @@ class AutoUpdater:
             # Batch-Script mit eingebetteten Pfaden erstellen (keine Parameter nötig!)
             batch_path = os.path.join(temp_dir, 'gsm_update.bat')
             
-            # Escaping für Batch: Backslashes verdoppeln nicht nötig, aber Anführungszeichen schon
-            new_exe_escaped = new_exe_path.replace('"', '""')
-            current_exe_escaped = current_exe.replace('"', '""')
-            
+            # Batch: warten -> alte exe loeschen -> die bereits kopierte .new UMBENENNEN
+            # (atomar, kein Byte-Kopieren der laufenden Datei -> keine Beschaedigung).
+            old_exe_esc = current_exe.replace('"', '""')
+            staged_esc = staged.replace('"', '""')
+            name_esc = exe_name.replace('"', '""')
+
             batch_script = f'''@echo off
 title Game Server Manager Pro - Update
-color 0A
+echo Aktualisiere Game Server Manager Pro ...
 echo.
-echo ========================================
-echo   Game Server Manager Pro - Update
-echo ========================================
-echo.
+set "OLD_EXE={old_exe_esc}"
+set "STAGED={staged_esc}"
 
-set "NEW_EXE={new_exe_escaped}"
-set "OLD_EXE={current_exe_escaped}"
-
-echo Neue Version: %NEW_EXE%
-echo Zu ersetzen:  %OLD_EXE%
-echo.
-
-echo [1/5] Warte auf Programmende...
+echo [1/3] Warte auf Programmende...
 :waitloop
 timeout /t 1 /nobreak >nul
-tasklist /FI "IMAGENAME eq GameServerManager.exe" 2>NUL | find /I /N "GameServerManager.exe">NUL
+tasklist /FI "IMAGENAME eq {name_esc}" 2>NUL | find /I /N "{name_esc}">NUL
 if "%ERRORLEVEL%"=="0" goto waitloop
-echo       Programm beendet.
-echo.
 
-echo [2/5] Warte, bis alle Dateien freigegeben sind...
-timeout /t 4 /nobreak >nul
-echo.
-
-echo [3/5] Erstelle Backup...
-if exist "%OLD_EXE%.backup" del /F /Q "%OLD_EXE%.backup" >nul 2>&1
-copy /Y "%OLD_EXE%" "%OLD_EXE%.backup" >nul 2>&1
-echo       Backup erstellt.
-echo.
-
-echo [4/5] Installiere Update...
-copy /Y "%NEW_EXE%" "%OLD_EXE%"
-if %errorlevel% neq 0 (
-    echo.
-    echo ========================================
-    echo   FEHLER beim Kopieren!
-    echo ========================================
-    echo.
-    echo Stelle Backup wieder her...
-    copy /Y "%OLD_EXE%.backup" "%OLD_EXE%" >nul 2>&1
-    echo.
-    echo Druecke eine Taste zum Beenden...
-    pause >nul
-    exit /b 1
-)
-echo       Update installiert!
-echo.
-
-echo [5/5] Starte Programm neu...
-start "" "%OLD_EXE%"
-
-echo.
-echo ========================================
-echo   Update erfolgreich!
-echo ========================================
+rem Windows die Datei freigeben lassen
 timeout /t 3 /nobreak >nul
 
-:: Aufraeumen
-del /F /Q "%OLD_EXE%.backup" >nul 2>&1
-del /F /Q "%NEW_EXE%" >nul 2>&1
+echo [2/3] Tausche Version aus...
+set /a tries=0
+:delloop
+del /F /Q "%OLD_EXE%" >nul 2>&1
+if exist "%OLD_EXE%" (
+    set /a tries+=1
+    if %tries% LSS 12 ( timeout /t 1 /nobreak >nul & goto delloop )
+)
+
+ren "%STAGED%" "{name_esc}"
+if not exist "%OLD_EXE%" copy /Y "%STAGED%" "%OLD_EXE%" >nul 2>&1
+
+echo [3/3] Starte neu...
+start "" "%OLD_EXE%"
 exit
 '''
             
