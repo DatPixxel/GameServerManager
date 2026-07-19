@@ -166,109 +166,63 @@ class AutoUpdater:
             except Exception:
                 pass
 
-            # Prüfe ob wir in einem geschützten Ordner sind (Program Files)
-            program_files = os.environ.get('ProgramFiles', 'C:\\Program Files')
-            program_files_x86 = os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)')
-            needs_admin = current_exe.lower().startswith(program_files.lower()) or \
-                          current_exe.lower().startswith(program_files_x86.lower())
-            
-            # Temp-Verzeichnis für Update-Script
+            # ---- Austausch per Umbenennen der LAUFENDEN exe ----
+            # Windows erlaubt das Umbenennen einer laufenden .exe. Wir benennen die
+            # laufende exe weg (.old) und legen die neue an die Originalstelle. So bleibt
+            # die .exe am exakt gleichen Pfad (Desktop-Verknuepfung bleibt gueltig) und es
+            # wird nie eine laufende/gesperrte Datei ueberkopiert. Alles in Python -> kein
+            # Batch, das beim Beenden mitgerissen werden koennte.
+            old_backup = current_exe + '.old'
+            try:
+                if os.path.exists(old_backup):
+                    os.remove(old_backup)
+            except Exception:
+                pass
+            try:
+                os.replace(current_exe, old_backup)      # laufende exe wegbenennen
+            except Exception as _e:
+                try:
+                    os.remove(staged)
+                except Exception:
+                    pass
+                return {'error': f'Konnte die alte Version nicht ersetzen ({_e}). '
+                                 f'Evtl. sind Adminrechte noetig - bitte manuell updaten.'}
+            try:
+                os.replace(staged, current_exe)          # neue exe an die Originalstelle
+            except Exception as _e:
+                try:
+                    os.replace(old_backup, current_exe)  # rueckgaengig
+                except Exception:
+                    pass
+                return {'error': f'Konnte die neue Version nicht platzieren ({_e}).'}
+
+            # Die .exe ist jetzt schon ausgetauscht. Nur noch neu starten:
+            # ein winziges Batch wartet kurz (bis diese Instanz weg ist) und startet neu.
             temp_dir = os.path.join(tempfile.gettempdir(), 'GSM_Update')
             os.makedirs(temp_dir, exist_ok=True)
-            
-            # Batch-Script mit eingebetteten Pfaden erstellen (keine Parameter nötig!)
-            batch_path = os.path.join(temp_dir, 'gsm_update.bat')
-            
-            # Batch: warten -> alte exe loeschen -> die bereits kopierte .new UMBENENNEN
-            # (atomar, kein Byte-Kopieren der laufenden Datei -> keine Beschaedigung).
-            old_exe_esc = current_exe.replace('"', '""')
-            staged_esc = staged.replace('"', '""')
-            name_esc = exe_name.replace('"', '""')
+            restart_bat = os.path.join(temp_dir, 'gsm_restart.bat')
+            exe_esc = current_exe.replace('"', '""')
+            old_esc = old_backup.replace('"', '""')
+            _crlf = chr(13) + chr(10)
+            _lines = [
+                "@echo off",
+                "timeout /t 3 /nobreak >nul",
+                'start "" "' + exe_esc + '"',
+                "timeout /t 2 /nobreak >nul",
+                'del /F /Q "' + old_esc + '" >nul 2>&1',
+                "exit",
+            ]
+            with open(restart_bat, "w", encoding="cp850") as f:
+                f.write(_crlf.join(_lines) + _crlf)
+            try:
+                subprocess.Popen(['cmd.exe', '/c', restart_bat],
+                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
+            except Exception:
+                try:
+                    subprocess.Popen([current_exe])
+                except Exception:
+                    pass
 
-            batch_script = f'''@echo off
-title Game Server Manager Pro - Update
-echo Aktualisiere Game Server Manager Pro ...
-echo.
-set "OLD_EXE={old_exe_esc}"
-set "STAGED={staged_esc}"
-
-echo [1/3] Beende laufendes Programm...
-rem kurz warten, damit die Weboberflaeche die Antwort noch bekommt
-timeout /t 2 /nobreak >nul
-taskkill /F /IM "{name_esc}" >nul 2>&1
-timeout /t 2 /nobreak >nul
-
-echo [2/3] Tausche Version aus...
-set /a tries=0
-:delloop
-del /F /Q "%OLD_EXE%" >nul 2>&1
-if exist "%OLD_EXE%" (
-    taskkill /F /IM "{name_esc}" >nul 2>&1
-    set /a tries+=1
-    if %tries% LSS 20 ( timeout /t 1 /nobreak >nul & goto delloop )
-)
-if exist "%OLD_EXE%" (
-    echo.
-    echo FEHLER: Konnte die alte Version nicht ersetzen ^(Datei gesperrt^).
-    echo Die neue Version liegt bereit als:
-    echo   %STAGED%
-    echo Bitte das Programm schliessen und die Datei manuell umbenennen.
-    echo.
-    pause
-    exit /b 1
-)
-
-rem Austausch nur per Umbenennen ^(atomar^) - KEIN Ueberkopieren einer laufenden Datei
-ren "%STAGED%" "{name_esc}"
-
-echo [3/3] Starte neu...
-start "" "%OLD_EXE%"
-exit
-'''
-            
-            with open(batch_path, 'w', encoding='cp850') as f:
-                f.write(batch_script)
-            
-            if needs_admin:
-                # Mit Admin-Rechten: CMD.EXE mit runas starten
-                # CMD.EXE ist IMMER vorhanden und hat IMMER eine Verknüpfung!
-                cmd_exe = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'System32', 'cmd.exe')
-                
-                # Parameter für CMD: /c führt Befehl aus und beendet
-                params = f'/c "{batch_path}"'
-                
-                print("Starte Update mit Admin-Rechten...")
-                print(f"   CMD: {cmd_exe}")
-                print(f"   Batch: {batch_path}")
-                
-                ret = ctypes.windll.shell32.ShellExecuteW(
-                    None,           # hwnd
-                    "runas",        # Operation (Admin-Rechte anfordern)
-                    cmd_exe,        # CMD.EXE - funktioniert IMMER!
-                    params,         # /c "pfad\zum\batch.bat"
-                    temp_dir,       # Arbeitsverzeichnis
-                    1               # SW_SHOWNORMAL (Fenster anzeigen)
-                )
-                
-                # ShellExecute gibt >32 bei Erfolg zurück
-                if ret <= 32:
-                    error_codes = {
-                        0: "Nicht genug Speicher",
-                        2: "Datei nicht gefunden", 
-                        3: "Pfad nicht gefunden",
-                        5: "Zugriff verweigert (UAC abgelehnt?)",
-                        31: "Keine Verknüpfung",
-                        32: "DLL nicht gefunden"
-                    }
-                    error_msg = error_codes.get(ret, f"Unbekannter Fehler")
-                    return {'error': f'Update fehlgeschlagen: {error_msg} (Code: {ret})\n\nBitte manuell updaten.'}
-            else:
-                # Ohne Admin: Batch normal starten
-                subprocess.Popen(
-                    ['cmd.exe', '/c', batch_path],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                )
-            
             return {'success': True, 'restart': True}
             
         except Exception as e:
