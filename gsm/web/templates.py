@@ -4,6 +4,7 @@ Aus game_server_manager.py ausgelagert.
 """
 
 import os
+import sys
 import json
 
 from gsm.constants import VERSION, APP_NAME, CONAN_UPLOAD_MAX_BYTES
@@ -1325,13 +1326,25 @@ def get_web_template(config_manager):
 
 
 def _load_external_template(filename, fallback_html):
+    # Mehrere moegliche Orte probieren, damit die Vorlage auch im .exe zuverlaessig
+    # gefunden wird (PyInstaller-Bundle-Root, neben der exe, __file__-basiert).
+    candidates = []
+    base = getattr(sys, '_MEIPASS', None)
+    if base:
+        candidates.append(os.path.join(base, 'templates', filename))
     try:
-        template_path = os.path.join(_ROOT, 'templates', filename)
-        if os.path.exists(template_path):
-            with open(template_path, 'r', encoding='utf-8') as f:
-                return f.read()
-    except:
+        if getattr(sys, 'frozen', False):
+            candidates.append(os.path.join(os.path.dirname(sys.executable), 'templates', filename))
+    except Exception:
         pass
+    candidates.append(os.path.join(_ROOT, 'templates', filename))
+    for template_path in candidates:
+        try:
+            if os.path.exists(template_path):
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+        except Exception:
+            pass
     return fallback_html
 
 

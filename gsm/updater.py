@@ -206,7 +206,7 @@ class AutoUpdater:
             _crlf = chr(13) + chr(10)
             _lines = [
                 "@echo off",
-                "timeout /t 3 /nobreak >nul",
+                "timeout /t 5 /nobreak >nul",
                 'start "" "' + exe_esc + '"',
                 "timeout /t 2 /nobreak >nul",
                 'del /F /Q "' + old_esc + '" >nul 2>&1',
