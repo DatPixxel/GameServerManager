@@ -192,26 +192,34 @@ echo.
 set "OLD_EXE={old_exe_esc}"
 set "STAGED={staged_esc}"
 
-echo [1/3] Warte auf Programmende...
-:waitloop
-timeout /t 1 /nobreak >nul
-tasklist /FI "IMAGENAME eq {name_esc}" 2>NUL | find /I /N "{name_esc}">NUL
-if "%ERRORLEVEL%"=="0" goto waitloop
-
-rem Windows die Datei freigeben lassen
-timeout /t 3 /nobreak >nul
+echo [1/3] Beende laufendes Programm...
+rem kurz warten, damit die Weboberflaeche die Antwort noch bekommt
+timeout /t 2 /nobreak >nul
+taskkill /F /IM "{name_esc}" >nul 2>&1
+timeout /t 2 /nobreak >nul
 
 echo [2/3] Tausche Version aus...
 set /a tries=0
 :delloop
 del /F /Q "%OLD_EXE%" >nul 2>&1
 if exist "%OLD_EXE%" (
+    taskkill /F /IM "{name_esc}" >nul 2>&1
     set /a tries+=1
-    if %tries% LSS 12 ( timeout /t 1 /nobreak >nul & goto delloop )
+    if %tries% LSS 20 ( timeout /t 1 /nobreak >nul & goto delloop )
+)
+if exist "%OLD_EXE%" (
+    echo.
+    echo FEHLER: Konnte die alte Version nicht ersetzen ^(Datei gesperrt^).
+    echo Die neue Version liegt bereit als:
+    echo   %STAGED%
+    echo Bitte das Programm schliessen und die Datei manuell umbenennen.
+    echo.
+    pause
+    exit /b 1
 )
 
+rem Austausch nur per Umbenennen ^(atomar^) - KEIN Ueberkopieren einer laufenden Datei
 ren "%STAGED%" "{name_esc}"
-if not exist "%OLD_EXE%" copy /Y "%STAGED%" "%OLD_EXE%" >nul 2>&1
 
 echo [3/3] Starte neu...
 start "" "%OLD_EXE%"
