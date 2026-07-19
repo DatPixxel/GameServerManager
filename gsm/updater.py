@@ -50,10 +50,10 @@ class AutoUpdater:
                 self.latest_version = data.get('tag_name', '').lstrip('v')
                 self.release_notes = data.get('body', '')
                 
-                # Download-URL finden (.exe Asset)
+                # Download-URL finden (.zip Asset – Ordner-Version)
                 assets = data.get('assets', [])
                 for asset in assets:
-                    if asset['name'].endswith('.exe'):
+                    if asset['name'].lower().endswith('.zip'):
                         self.download_url = asset['browser_download_url']
                         break
                 
@@ -98,7 +98,7 @@ class AutoUpdater:
             import tempfile
             temp_dir = os.path.join(tempfile.gettempdir(), 'GameServerManager_update')
             os.makedirs(temp_dir, exist_ok=True)
-            temp_file = os.path.join(temp_dir, 'GameServerManager_new.exe')
+            temp_file = os.path.join(temp_dir, 'GameServerManager_new.zip')
             
             # Download mit Fortschritt
             response = requests.get(self.download_url, stream=True, timeout=60)
@@ -125,105 +125,91 @@ class AutoUpdater:
         except Exception as e:
             return {'error': f'Download fehlgeschlagen: {str(e)}'}
     
-    def install_update(self, new_exe_path):
-        """
-        Update-Installation mit CMD und Batch-Script.
-        Funktioniert ohne VBS - nur native Windows CMD.
+    def install_update(self, new_zip_path):
+        """Installiert das Update der Ordner-Version aus einem ZIP.
+
+        Entpackt das ZIP in einen Staging-Ordner und startet ein abgekoppeltes Batch,
+        das nach Programmende den alten Ordner-Inhalt (exe + _internal) durch den neuen
+        ersetzt und neu startet. Der Programmordner bleibt am gleichen Ort -> Verknuepfung
+        bleibt gueltig. Kein Selbst-Entpacken zur Laufzeit -> kein python313.dll-Fehler.
         """
         try:
             import tempfile
-            import ctypes
-            
-            current_exe = os.path.abspath(sys.argv[0])
-            
-            # Wenn wir als .py laufen, nicht als .exe
-            if not current_exe.endswith('.exe'):
-                # Entwicklungsmodus
-                if getattr(sys, 'frozen', False):
-                    program_dir = os.path.dirname(sys.executable)
-                else:
-                    program_dir = os.path.dirname(os.path.abspath(__file__))
-                shutil.copy(new_exe_path, os.path.join(program_dir, 'GameServerManager.exe'))
-                return {'success': True, 'message': 'Update installiert (Entwicklungsmodus)'}
-            
-            working_dir = os.path.dirname(current_exe)
+            import zipfile
+
+            if not getattr(sys, 'frozen', False):
+                return {'error': 'Update ist nur in der installierten Version moeglich.'}
+
+            current_exe = sys.executable
+            app_dir = os.path.dirname(current_exe)
             exe_name = os.path.basename(current_exe)
+            parent = os.path.dirname(app_dir)
 
-            # Die neue exe JETZT (das Programm laeuft noch) in den Programmordner kopieren –
-            # unter neuem Namen, damit nichts Gesperrtes beruehrt wird. Danach verifizieren.
-            # Der eigentliche Austausch ist dann nur ein Umbenennen (atomar, keine Beschaedigung).
-            staged = os.path.join(working_dir, exe_name + '.new')
+            # 1) ZIP in Staging-Ordner entpacken
+            staging = os.path.join(parent, 'GSM_update_staging')
             try:
-                if os.path.exists(staged):
-                    os.remove(staged)
-                shutil.copy2(new_exe_path, staged)
+                if os.path.isdir(staging):
+                    shutil.rmtree(staging, ignore_errors=True)
+                os.makedirs(staging, exist_ok=True)
+                with zipfile.ZipFile(new_zip_path) as z:
+                    z.extractall(staging)
             except Exception as _e:
-                return {'error': f'Konnte Update nicht vorbereiten: {_e}'}
-            try:
-                if os.path.getsize(staged) != os.path.getsize(new_exe_path):
-                    os.remove(staged)
-                    return {'error': 'Update-Datei wurde beim Vorbereiten unvollstaendig – abgebrochen.'}
-            except Exception:
-                pass
+                return {'error': f'Konnte Update nicht entpacken: {_e}'}
 
-            # ---- Austausch per Umbenennen der LAUFENDEN exe ----
-            # Windows erlaubt das Umbenennen einer laufenden .exe. Wir benennen die
-            # laufende exe weg (.old) und legen die neue an die Originalstelle. So bleibt
-            # die .exe am exakt gleichen Pfad (Desktop-Verknuepfung bleibt gueltig) und es
-            # wird nie eine laufende/gesperrte Datei ueberkopiert. Alles in Python -> kein
-            # Batch, das beim Beenden mitgerissen werden koennte.
-            old_backup = current_exe + '.old'
-            try:
-                if os.path.exists(old_backup):
-                    os.remove(old_backup)
-            except Exception:
-                pass
-            try:
-                os.replace(current_exe, old_backup)      # laufende exe wegbenennen
-            except Exception as _e:
-                try:
-                    os.remove(staged)
-                except Exception:
-                    pass
-                return {'error': f'Konnte die alte Version nicht ersetzen ({_e}). '
-                                 f'Evtl. sind Adminrechte noetig - bitte manuell updaten.'}
-            try:
-                os.replace(staged, current_exe)          # neue exe an die Originalstelle
-            except Exception as _e:
-                try:
-                    os.replace(old_backup, current_exe)  # rueckgaengig
-                except Exception:
-                    pass
-                return {'error': f'Konnte die neue Version nicht platzieren ({_e}).'}
+            # Wurzel im Staging finden (ZIP flach ODER mit einem Unterordner)
+            src = staging
+            if not os.path.exists(os.path.join(src, exe_name)):
+                for d in os.listdir(staging):
+                    cand = os.path.join(staging, d)
+                    if os.path.isdir(cand) and os.path.exists(os.path.join(cand, exe_name)):
+                        src = cand
+                        break
+            if not os.path.exists(os.path.join(src, exe_name)):
+                return {'error': 'Update-Paket unvollstaendig (Programm-Datei fehlt).'}
 
-            # Die .exe ist jetzt schon ausgetauscht. Nur noch neu starten:
-            # ein winziges Batch wartet kurz (bis diese Instanz weg ist) und startet neu.
+            # 2) Abgekoppeltes Batch schreiben
             temp_dir = os.path.join(tempfile.gettempdir(), 'GSM_Update')
             os.makedirs(temp_dir, exist_ok=True)
-            restart_bat = os.path.join(temp_dir, 'gsm_restart.bat')
+            bat = os.path.join(temp_dir, 'gsm_update.bat')
+
+            app_esc = app_dir.replace('"', '""')
+            src_esc = src.replace('"', '""')
             exe_esc = current_exe.replace('"', '""')
-            old_esc = old_backup.replace('"', '""')
+            name_esc = exe_name.replace('"', '""')
+            staging_esc = staging.replace('"', '""')
             _crlf = chr(13) + chr(10)
             _lines = [
                 "@echo off",
-                "timeout /t 5 /nobreak >nul",
-                'start "" "' + exe_esc + '"',
+                "title Game Server Manager - Update",
+                "echo Aktualisiere Game Server Manager ...",
                 "timeout /t 2 /nobreak >nul",
-                'del /F /Q "' + old_esc + '" >nul 2>&1',
+                'taskkill /F /IM "' + name_esc + '" >nul 2>&1',
+                "timeout /t 2 /nobreak >nul",
+                ":waitgone",
+                'tasklist /FI "IMAGENAME eq ' + name_esc + '" 2>NUL | find /I /N "' + name_esc + '">NUL',
+                'if "%ERRORLEVEL%"=="0" ( timeout /t 1 /nobreak >nul & goto waitgone )',
+                'del /F /Q "' + app_esc + chr(92) + name_esc + '" >nul 2>&1',
+                'if exist "' + app_esc + chr(92) + '_internal" rmdir /S /Q "' + app_esc + chr(92) + '_internal"',
+                'robocopy "' + src_esc + '" "' + app_esc + '" /E /MOVE >nul',
+                'if exist "' + staging_esc + '" rmdir /S /Q "' + staging_esc + '"',
+                'start "" "' + exe_esc + '"',
                 "exit",
             ]
-            with open(restart_bat, "w", encoding="cp850") as f:
+            with open(bat, "w", encoding="cp850") as f:
                 f.write(_crlf.join(_lines) + _crlf)
+
+            # Abgekoppelt starten, damit das Batch das Beenden des Programms ueberlebt
+            DETACHED_PROCESS = 0x00000008
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+            flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB
             try:
-                subprocess.Popen(['cmd.exe', '/c', restart_bat],
-                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
+                subprocess.Popen(['cmd.exe', '/c', bat], creationflags=flags, close_fds=True)
             except Exception:
-                try:
-                    subprocess.Popen([current_exe])
-                except Exception:
-                    pass
+                subprocess.Popen(['cmd.exe', '/c', bat],
+                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
 
             return {'success': True, 'restart': True}
-            
+
         except Exception as e:
             return {'error': f'Update fehlgeschlagen: {str(e)}'}

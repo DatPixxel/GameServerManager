@@ -1,4 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
+# ONEDIR-Build: das Programm liegt als Ordner (GameServerManager/) mit exe + _internal/.
+# Kein Selbst-Entpacken zur Laufzeit -> der "python313.dll konnte nicht geladen werden"-
+# Fehler ist damit per Konstruktion ausgeschlossen.
 from PyInstaller.utils.hooks import collect_all
 
 datas = [('templates', 'templates'), ('static', 'static')]
@@ -30,20 +33,27 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='GameServerManager',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='GameServerManager',
 )
