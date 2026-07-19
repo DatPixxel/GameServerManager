@@ -229,7 +229,7 @@ exit
                 # Parameter für CMD: /c führt Befehl aus und beendet
                 params = f'/c "{batch_path}"'
                 
-                print(f"🔐 Starte Update mit Admin-Rechten...")
+                print("Starte Update mit Admin-Rechten...")
                 print(f"   CMD: {cmd_exe}")
                 print(f"   Batch: {batch_path}")
                 

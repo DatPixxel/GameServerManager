@@ -13,12 +13,10 @@ import sys
 import time
 import socket
 
-# Konsolen-Ausgabe robust machen (Windows-cp1252 kann keine Emojis)
+# Konsolen-Ausgabe ABSOLUT crash-sicher machen (Emojis unter Windows-cp1252 im .exe)
 try:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    from gsm import safeio
+    safeio.install()
 except Exception:
     pass
 
