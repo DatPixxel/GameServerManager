@@ -199,15 +199,29 @@ class AutoUpdater:
                 f.write(_crlf.join(_lines) + _crlf)
 
             # Abgekoppelt starten, damit das Batch das Beenden des Programms ueberlebt
-            DETACHED_PROCESS = 0x00000008
+            # WICHTIG: CREATE_NO_WINDOW gibt dem Batch eine (versteckte) Konsole -> timeout
+            # und vor allem "start" (Neustart) funktionieren. Ohne Konsole (DETACHED) laeuft
+            # der Austausch zwar, aber der Neustart nicht. BREAKAWAY_FROM_JOB, damit der
+            # Vorgang das Beenden des Programms sicher ueberlebt.
+            CREATE_NO_WINDOW = 0x08000000
             CREATE_NEW_PROCESS_GROUP = 0x00000200
             CREATE_BREAKAWAY_FROM_JOB = 0x01000000
-            flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB
             try:
-                subprocess.Popen(['cmd.exe', '/c', bat], creationflags=flags, close_fds=True)
+                subprocess.Popen(
+                    ['cmd.exe', '/c', bat],
+                    creationflags=CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+                    close_fds=True,
+                )
             except Exception:
-                subprocess.Popen(['cmd.exe', '/c', bat],
-                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
+                try:
+                    subprocess.Popen(
+                        ['cmd.exe', '/c', bat],
+                        creationflags=CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,
+                        close_fds=True,
+                    )
+                except Exception:
+                    subprocess.Popen(['cmd.exe', '/c', bat],
+                                     creationflags=subprocess.CREATE_NEW_CONSOLE)
 
             return {'success': True, 'restart': True}
 
