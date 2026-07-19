@@ -113,7 +113,13 @@ class AutoUpdater:
                         if progress_callback and total_size:
                             progress = int((downloaded / total_size) * 100)
                             progress_callback(progress)
-            
+
+            # Vollständigkeit prüfen (unvollständiger Download -> beschädigte exe)
+            if total_size and downloaded < total_size:
+                return {'error': f'Download unvollständig ({downloaded}/{total_size} Bytes). Bitte erneut versuchen.'}
+            if os.path.getsize(temp_file) < 1_000_000:
+                return {'error': 'Heruntergeladene Datei ist zu klein/beschädigt. Bitte erneut versuchen.'}
+
             return {'success': True, 'file': temp_file}
             
         except Exception as e:
@@ -183,12 +189,8 @@ if "%ERRORLEVEL%"=="0" goto waitloop
 echo       Programm beendet.
 echo.
 
-echo [2/5] Raeume PyInstaller-Cache auf...
-timeout /t 2 /nobreak >nul
-for /d %%i in ("%TEMP%\\_MEI*") do (
-    rmdir /s /q "%%i" >nul 2>&1
-)
-echo       Cache bereinigt.
+echo [2/5] Warte, bis alle Dateien freigegeben sind...
+timeout /t 4 /nobreak >nul
 echo.
 
 echo [3/5] Erstelle Backup...
