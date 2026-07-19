@@ -107,6 +107,10 @@ def create_web_app(app_instance, config_manager):
 
     @flask_app.route('/login', methods=['GET', 'POST'])
     def login():
+        # Schon angemeldet? Dann nicht das Login-Formular zeigen (z. B. bei Zurück-Button),
+        # sondern zur App zurückleiten.
+        if request.method == 'GET' and 'token' in session and session['token'] in valid_sessions:
+            return redirect('/')
         if request.method == 'POST':
             password = request.form.get('password', '')
             if config_manager.verify_password(password):

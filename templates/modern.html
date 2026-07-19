@@ -461,11 +461,12 @@
   }
 
   // ---------- Detail ----------
-  async function openDetail(id){
+  async function openDetail(id,fromPop){
     state.detail=id;state.tab="overview";
     setActiveNav(null);
     renderDetailShell();
     loadTab();
+    if(!fromPop)history.pushState({detail:id},"","");
   }
   function server(){return state.servers.find(s=>s.id===state.detail);}
   function renderDetailShell(){
@@ -605,8 +606,15 @@
   }
 
   function setActiveNav(v){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));}
-  function go(view){state.view=view;state.detail=null;setActiveNav(view);render();}
-  function backToList(){state.detail=null;setActiveNav("dashboard");state.view="dashboard";render();}
+  function go(view,fromPop){state.view=view;state.detail=null;setActiveNav(view);render();if(!fromPop)history.pushState({view},"","");}
+  function backToList(){go("dashboard");}
+
+  // Zurück-Button (Maus/Browser) navigiert innerhalb der App statt zur Login-Seite
+  window.addEventListener("popstate",function(e){
+    const s=e.state;
+    if(s&&s.detail){openDetail(s.detail,true);}
+    else{go((s&&s.view)||"dashboard",true);}
+  });
 
   // ---------- Events ----------
   $("#nav").addEventListener("click",e=>{const b=e.target.closest("button[data-view]");if(b)go(b.dataset.view);});
@@ -760,6 +768,7 @@
 
   // Init + Live-Refresh
   (async function init(){
+    history.replaceState({view:"dashboard"},"","");
     await refresh();render();
     // Auto-Refresh: nur Live-Zahlen in place aktualisieren (kein Flackern);
     // komplett neu rendern nur, wenn sich die Struktur ändert (Server hinzu/weg, Start/Stop).
