@@ -99,14 +99,25 @@ def main(window=True):
             pass
         return _serve_forever(url)
 
-    _log(f"🖥️  Öffne Fenster:  {url}")
-    webview.create_window(
-        "Game Server Manager",
-        url,
-        width=1280, height=820, min_size=(1000, 640),
-    )
-    webview.start()
-    return 0
+    _log(f"Oeffne Fenster:  {url}")
+    try:
+        webview.create_window(
+            "Game Server Manager",
+            url,
+            width=1280, height=820, min_size=(1000, 640),
+        )
+        # Modernes Edge-WebView2-Backend erzwingen (kein .NET/winforms-Fallback,
+        # der ohne WebView2-Runtime abstuerzt).
+        webview.start(gui='edgechromium')
+        return 0
+    except Exception as e:
+        _log(f"Natives Fenster nicht verfuegbar ({e}) -> oeffne im Browser")
+        try:
+            import webbrowser
+            webbrowser.open(url)
+        except Exception:
+            pass
+        return _serve_forever(url)
 
 
 if __name__ == "__main__":
