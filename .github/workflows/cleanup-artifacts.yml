@@ -1,0 +1,57 @@
+name: Artefakte aufraeumen
+
+# Loescht alle 2 Tage alte GitHub-Actions-Artefakte (Build-Zwischendateien)
+# und schickt danach eine Meldung per ntfy. Releases und Code bleiben unberuehrt.
+
+on:
+  schedule:
+    - cron: "17 3 */2 * *"   # alle 2 Tage, 03:17 UTC (05:17 Schweizer Zeit)
+  workflow_dispatch: {}       # erlaubt manuelles Starten (zum Testen)
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Alte Artefakte loeschen
+        id: clean
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const cutoff = Date.now() - 2 * 24 * 60 * 60 * 1000; // aelter als 2 Tage
+            const arts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo, { owner, repo, per_page: 100 }
+            );
+            let deleted = 0, freed = 0, kept = 0;
+            for (const a of arts) {
+              if (a.expired) continue;
+              if (new Date(a.created_at).getTime() < cutoff) {
+                try {
+                  await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+                  deleted++; freed += a.size_in_bytes;
+                } catch (e) { core.warning(`Konnte Artefakt ${a.id} nicht loeschen: ${e.message}`); }
+              } else {
+                kept++;
+              }
+            }
+            core.setOutput('deleted', String(deleted));
+            core.setOutput('kept', String(kept));
+            core.setOutput('total', String(arts.length));
+            core.setOutput('freed_mb', String(Math.round(freed / 1048576)));
+            core.info(`Geloescht: ${deleted}, behalten: ${kept}, frei: ${Math.round(freed/1048576)} MB`);
+
+      - name: Meldung an ntfy
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            MSG="Aufraeumen fertig: ${{ steps.clean.outputs.deleted }} Artefakt(e) geloescht, ${{ steps.clean.outputs.kept }} behalten. ~${{ steps.clean.outputs.freed_mb }} MB frei. (gesamt vorher: ${{ steps.clean.outputs.total }})"
+            TAGS="broom"
+          else
+            MSG="Aufraeumen FEHLGESCHLAGEN. Bitte im GitHub-Actions-Tab nachsehen."
+            TAGS="warning"
+          fi
+          curl -s --max-time 15 -H "Title: GitHub Artefakte aufgeraeumt" -H "Tags: $TAGS" -d "$MSG" "${{ secrets.NTFY_URL }}"
