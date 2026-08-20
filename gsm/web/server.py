@@ -30,6 +30,29 @@ from gsm.web.templates import (
 )
 
 
+def _update_snapshot(instance):
+    """Kopie des Update-Zustands – der Update-Thread schreibt parallel weiter."""
+    state = getattr(instance, 'update_state', None) or {}
+    return {
+        'running': bool(state.get('running')),
+        'percent': float(state.get('percent') or 0),
+        'status': state.get('status') or '',
+        'lines': list(state.get('lines') or []),
+        'success': state.get('success'),
+        'message': state.get('message') or '',
+        'started_at': state.get('started_at'),
+        'finished_at': state.get('finished_at'),
+    }
+
+
+def _update_summary(instance):
+    """Schlanke Fassung für die Server-Liste (ohne das Live-Log)."""
+    if not instance:
+        return {'running': False, 'percent': 0, 'status': ''}
+    snap = _update_snapshot(instance)
+    return {'running': snap['running'], 'percent': snap['percent'], 'status': snap['status']}
+
+
 def create_web_app(app_instance, config_manager):
     """Baut die Flask-App mit allen Routen und gibt sie zurueck."""
     flask_app = Flask(__name__)
@@ -373,7 +396,9 @@ def create_web_app(app_instance, config_manager):
                 'auto_restart': server_config.get('auto_restart', True),
                 'auto_backup': server_config.get('auto_backup', False),
                 'backup_interval': server_config.get('backup_interval_hours', 0),
-                'max_backups': server_config.get('max_backups', 10)
+                'max_backups': server_config.get('max_backups', 10),
+                'last_update': server_config.get('last_update', ''),
+                'update': _update_summary(instance)
             })
         return jsonify({'servers': servers})
 
@@ -694,6 +719,22 @@ def create_web_app(app_instance, config_manager):
         logs = instance.get_server_logs(max_lines=100)
         return jsonify({'logs': logs})
     
+    @flask_app.route('/api/server/<server_id>/update-status')
+    def api_update_status(server_id):
+        """Fortschritt des laufenden/letzten SteamCMD-Updates (für die Live-Anzeige)."""
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        instance = app_instance.server_instances.get(server_id)
+        if not instance:
+            return jsonify({'running': False, 'percent': 0, 'status': '', 'lines': [],
+                            'success': None, 'message': '', 'last_update': ''})
+
+        state = _update_snapshot(instance)
+        server_config = config_manager.servers.get(server_id, {})
+        state['last_update'] = server_config.get('last_update', '')
+        return jsonify(state)
+
     @flask_app.route('/api/server/<server_id>/update', methods=['POST'])
     def api_update_server(server_id):
         if 'token' not in session or session['token'] not in valid_sessions:
@@ -714,6 +755,10 @@ def create_web_app(app_instance, config_manager):
         if not game_info.get('app_id'):
             return jsonify({'success': False, 'message': 'Für dieses Spiel ist kein SteamCMD-Update konfiguriert'})
         
+        # Zustand synchron auf "läuft" setzen, damit die Oberfläche sofort den
+        # neuen Lauf anzeigt und nicht kurz noch das vorherige Ergebnis
+        instance.begin_update_state()
+
         # Update in Thread starten
         def do_update():
             instance.update_server()
@@ -752,6 +797,7 @@ def create_web_app(app_instance, config_manager):
             threading.Thread(target=do_backup, daemon=True).start()
             return jsonify({'success': True, 'message': 'Backup wird erstellt...'})
         elif action == 'update':
+            instance.begin_update_state()
             def do_update():
                 instance.update_server()
             threading.Thread(target=do_update, daemon=True).start()

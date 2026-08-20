@@ -22,6 +22,9 @@ from gsm.constants import CONAN_WORKSHOP_APP_ID
 from gsm.security import validate_backup_path, safe_extract_zip
 from gsm.mods import _normalize_mod_id, fetch_workshop_mod_names
 
+# Wie viele SteamCMD-Zeilen für die Live-Anzeige des Updates vorgehalten werden
+UPDATE_LOG_LINES = 40
+
 
 class ServerInstance:
     """Repräsentiert einen einzelnen Game-Server"""
@@ -35,7 +38,10 @@ class ServerInstance:
         self.monitoring_active = False
         self.start_time = None
         self.log_messages = []
-        
+
+        # Fortschritt des letzten/laufenden SteamCMD-Updates (für die Web-Oberfläche)
+        self.update_state = self._empty_update_state()
+
         # Auto-Backup System
         self.auto_backup_active = False
         self.auto_backup_thread = None
@@ -1026,13 +1032,15 @@ class ServerInstance:
         Liest Server-Logs aus verschiedenen Quellen:
         1. Interne Log-Messages
         2. Server-Log-Dateien
+
+        Interne Meldungen (Update, Start, Backup) bekommen ein festes Kontingent,
+        damit sie von umfangreichen Server-Logdateien nicht verdrängt werden.
         """
-        all_logs = []
-        
         # 1. Interne Logs (von uns geschrieben)
-        all_logs.extend(self.log_messages)
-        
+        internal_logs = list(self.log_messages)
+
         # 2. Server-Log-Dateien suchen
+        file_logs = []
         server_dir = self.get_server_dir()
         log_patterns = [
             "*.log",
@@ -1042,7 +1050,7 @@ class ServerInstance:
             "ShooterGame/Saved/Logs/*.log",  # ARK
             "server/*.log",
         ]
-        
+
         for pattern in log_patterns:
             log_path = os.path.join(server_dir, pattern)
             import glob
@@ -1054,23 +1062,34 @@ class ServerInstance:
                         for line in lines:
                             line = line.strip()
                             if line:
-                                all_logs.append(f"[FILE] {line}")
+                                file_logs.append(f"[FILE] {line}")
                 except:
                     pass
-        
-        # Filter anwenden
-        if search_filter:
-            search_lower = search_filter.lower()
-            all_logs = [log for log in all_logs if search_lower in log.lower()]
-        
-        if level_filter == "errors":
-            all_logs = [log for log in all_logs if any(x in log.lower() for x in ["error", "fail", "exception", "❌", "critical"])]
-        elif level_filter == "warnings":
-            all_logs = [log for log in all_logs if any(x in log.lower() for x in ["warn", "⚠️", "warning"])]
-        
-        # Auf max_lines begrenzen
-        return all_logs[-max_lines:]
-    
+
+        # Filter auf beide Quellen getrennt anwenden (sonst stimmt die Aufteilung unten nicht)
+        def _apply_filters(logs):
+            if search_filter:
+                search_lower = search_filter.lower()
+                logs = [log for log in logs if search_lower in log.lower()]
+            if level_filter == "errors":
+                logs = [log for log in logs if any(x in log.lower() for x in ["error", "fail", "exception", "❌", "critical"])]
+            elif level_filter == "warnings":
+                logs = [log for log in logs if any(x in log.lower() for x in ["warn", "⚠️", "warning"])]
+            return logs
+
+        internal_logs = _apply_filters(internal_logs)
+        file_logs = _apply_filters(file_logs)
+
+        # Auf max_lines begrenzen: erst das Kontingent für eigene Meldungen sichern,
+        # den Rest fuellen die Datei-Logs auf.
+        if len(internal_logs) + len(file_logs) <= max_lines:
+            return internal_logs + file_logs
+
+        own_quota = min(len(internal_logs), max(1, max_lines // 3))
+        own_tail = internal_logs[-own_quota:] if own_quota else []
+        file_tail = file_logs[-(max_lines - len(own_tail)):] if max_lines > len(own_tail) else []
+        return own_tail + file_tail
+
     def check_for_update(self):
         """
         Prüft ob ein Server-Update über SteamCMD verfügbar ist.
@@ -1089,51 +1108,149 @@ class ServerInstance:
         self.log(f"🔍 Prüfe auf Updates für App {app_id}...")
         return True  # Für jetzt immer True - SteamCMD prüft selbst
     
+    # ---------- Update-Fortschritt (für die Web-Oberfläche) ----------
+
+    @staticmethod
+    def _empty_update_state():
+        """Zustand, solange noch nie ein Update lief."""
+        return {
+            "running": False,
+            "percent": 0.0,
+            "status": "",
+            "lines": [],
+            "success": None,
+            "message": "",
+            "started_at": None,
+            "finished_at": None,
+        }
+
+    def _update_begin(self):
+        """Setzt den Fortschritts-Zustand auf 'läuft'."""
+        self.update_state = {
+            "running": True,
+            "percent": 0.0,
+            "status": "Update wird vorbereitet…",
+            "lines": [],
+            "success": None,
+            "message": "",
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+            "finished_at": None,
+        }
+
+    def begin_update_state(self):
+        """Setzt den Fortschritts-Zustand sofort auf 'läuft'.
+
+        Wird von der Web-API direkt beim Klick aufgerufen – sonst könnte die
+        Oberfläche im Moment zwischen Antwort und Thread-Start noch das Ergebnis
+        des vorherigen Laufs sehen und es fälschlich als "fertig" melden.
+        """
+        self._update_begin()
+
+    def _update_status(self, text):
+        self.update_state["status"] = text
+
+    def _update_percent(self, percent):
+        self.update_state["percent"] = max(0.0, min(100.0, round(float(percent), 1)))
+
+    def _update_line(self, line):
+        """Hängt eine SteamCMD-Zeile an das Live-Log (auf UPDATE_LOG_LINES begrenzt)."""
+        lines = self.update_state["lines"]
+        lines.append(line)
+        if len(lines) > UPDATE_LOG_LINES:
+            del lines[:-UPDATE_LOG_LINES]
+
+    @staticmethod
+    def _parse_update_percent(line):
+        """Liest den Fortschritt aus einer SteamCMD-Zeile.
+
+        SteamCMD meldet 'Update state (0x61) downloading, progress: 42.35 (...)' –
+        also OHNE Prozentzeichen. Die Prozent-Variante bleibt als Fallback.
+        """
+        match = re.search(r'progress:\s*(\d+(?:\.\d+)?)', line, re.IGNORECASE)
+        if not match:
+            match = re.search(r'(\d+(?:\.\d+)?)\s*%', line)
+        if not match:
+            return None
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
+
+    def _update_finish(self, success, message):
+        """Schließt den Fortschritts-Zustand ab und merkt sich den Zeitpunkt.
+
+        Gibt success zurück, damit update_server() direkt damit enden kann.
+        """
+        finished_at = datetime.now().isoformat(timespec="seconds")
+        self.update_state.update({
+            "running": False,
+            "success": bool(success),
+            "status": message,
+            "message": message,
+            "finished_at": finished_at,
+        })
+        if success:
+            self.update_state["percent"] = 100.0
+            # Zeitpunkt dauerhaft merken, damit "Zuletzt aktualisiert" einen Neustart überlebt
+            self.config["last_update"] = finished_at
+            try:
+                self.config_manager.save_servers()
+            except Exception as err:
+                self.log(f"⚠️ Update-Zeitpunkt konnte nicht gespeichert werden: {err}")
+        return bool(success)
+
     def update_server(self, progress_callback=None, username="anonymous", password=""):
         """
         Aktualisiert den Server über SteamCMD.
         Stoppt den Server vorher falls er läuft.
+
+        Hält dabei self.update_state aktuell, damit die Web-Oberfläche Fortschritt,
+        Live-Log und Ergebnis anzeigen kann.
         """
         game_info = SUPPORTED_GAMES.get(self.config["game"], {})
         app_id = game_info.get("app_id", "")
-        
+
+        self._update_begin()
+
         if not app_id:
             self.log("❌ Update nicht möglich - kein Steam-Spiel")
-            return False
-        
+            return self._update_finish(False, "Kein Steam-Spiel - Update nicht möglich")
+
         was_running = self.is_running()
-        
+
         # Server stoppen wenn läuft
         if was_running:
+            self._update_status("Stoppe Server für das Update…")
             self.log("⚫ Stoppe Server für Update...")
             self.stop()
             time.sleep(3)
-        
+
         try:
             self.log(f"🔄 Aktualisiere Server (App {app_id})...")
-            
+
             steamcmd_path = os.path.join(PATHS["steamcmd"], "steamcmd.exe")
             if not os.path.exists(steamcmd_path):
                 self.log("❌ SteamCMD nicht installiert!")
-                return False
-            
+                return self._update_finish(False, "SteamCMD ist nicht installiert")
+
             server_dir = self.get_server_dir()
-            
+
             # Login-Befehl bauen
             # SteamCMD Befehl als Liste (shell=False für Sicherheit)
             cmd_list = [steamcmd_path, "+force_install_dir", server_dir]
-            
+
             # Login
             if username == "anonymous":
                 cmd_list.extend(["+login", "anonymous"])
             else:
                 cmd_list.extend(["+login", username, password])
-            
+
             # Update und Quit
             cmd_list.extend(["+app_update", str(app_id), "validate", "+quit"])
-            
+
+            self._update_status("SteamCMD lädt die Server-Dateien…")
             self.log("📥 SteamCMD läuft...")
-            
+
             process = subprocess.Popen(
                 cmd_list,
                 stdout=subprocess.PIPE,
@@ -1142,53 +1259,56 @@ class ServerInstance:
                 shell=False,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
             )
-            
+
             # Fortschritt lesen und Erfolg erkennen
             update_lines = []
             update_success = False
-            
+
             for line in process.stdout:
                 line = line.strip()
                 if line:
                     update_lines.append(line)
-                    
+                    self._update_line(line)
+
                     # Erfolg erkennen
                     if "Success!" in line and "fully installed" in line:
                         update_success = True
                     elif f"App '{app_id}' already up to date" in line:
                         update_success = True
-                    
+                        self._update_status("Bereits aktuell – kein Download nötig")
+
                     # Fortschritt parsen
                     if "progress:" in line.lower() or "downloading" in line.lower():
                         self.log(f"  {line}")
-                    if progress_callback and "%" in line:
-                        try:
-                            # Versuche Prozent zu extrahieren
-                            import re
-                            match = re.search(r'(\d+(?:\.\d+)?)\s*%', line)
-                            if match:
-                                progress_callback(float(match.group(1)))
-                        except:
-                            pass
-            
+                    percent = self._parse_update_percent(line)
+                    if percent is not None:
+                        self._update_percent(percent)
+                        if progress_callback:
+                            try:
+                                progress_callback(percent)
+                            except Exception:
+                                pass
+
             process.wait()
-            
+
             # Erfolg: Entweder returncode 0 ODER Success-Meldung
             if process.returncode == 0 or update_success:
                 self.log("✅ Server erfolgreich aktualisiert!")
-                
+
                 # Server wieder starten wenn er vorher lief
                 if was_running:
                     self.log("▶️ Starte Server wieder...")
+                    self._update_status("Starte Server wieder…")
                     time.sleep(2)
                     self.start()
-                
-                return True
+
+                return self._update_finish(True, "Server erfolgreich aktualisiert")
             else:
                 self.log(f"❌ Update fehlgeschlagen (Exit Code: {process.returncode})")
-                return False
-                
+                return self._update_finish(
+                    False, f"Update fehlgeschlagen (Exit-Code {process.returncode})"
+                )
+
         except Exception as e:
             self.log(f"❌ Update-Fehler: {str(e)}")
-            return False
-
+            return self._update_finish(False, f"Update-Fehler: {e}")

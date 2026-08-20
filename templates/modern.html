@@ -113,6 +113,22 @@
   .track>i{display:block;height:100%;border-radius:999px;width:0;transition:width .7s cubic-bezier(.4,0,.2,1)}
   .track>i.ok{background:linear-gradient(90deg,var(--ok),#5fd08c)}.track>i.warn{background:linear-gradient(90deg,var(--warn),#f0c56a)}.track>i.crit{background:linear-gradient(90deg,var(--crit),#f0857e)}.track>i.ac{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
   .bar .rv{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  /* Update-Fortschritt */
+  .upd{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:14px 16px;margin-bottom:18px}
+  .upd .uh{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:650;color:var(--text);margin-bottom:9px}
+  .upd .uh .sp{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .upd .us{font-size:12.5px;color:var(--muted);margin-bottom:11px}
+  .upd .track{height:8px;margin-bottom:12px}
+  .upd .ulog{height:132px;margin:0}
+  .upd .ul{font-size:12.5px;color:var(--muted);margin-top:11px}
+  .upd .ul b{color:var(--text);font-variant-numeric:tabular-nums}
+  .upd.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--border));background:color-mix(in srgb,var(--ok-bg) 55%,var(--surface-2))}
+  .upd.fail{border-color:color-mix(in srgb,var(--crit) 45%,var(--border));background:color-mix(in srgb,var(--crit-bg) 55%,var(--surface-2))}
+  .spin{width:13px;height:13px;flex:0 0 auto;border-radius:50%;border:2px solid var(--surface-3);border-top-color:var(--accent);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pill.updp{background:var(--accent-weak);color:var(--accent)}
+  .pill.updp i{background:var(--accent);animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px solid var(--border-soft);padding-top:14px}
   .act{padding:8px;border-radius:var(--r-xs);font-size:12.5px;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;border:1px solid var(--border-soft);color:var(--muted)}
   .act:hover{color:var(--text);border-color:var(--border);background:var(--surface)}
@@ -263,9 +279,14 @@
   // ---------- Rendering ----------
   function cardHTML(s){
     const st=!s.installed?"na":s.running?"ok":"off";
-    const pill=!s.installed?'<span class="pill na"><i></i>Nicht installiert</span>':s.running?'<span class="pill ok"><i></i>Online</span>':'<span class="pill off"><i></i>Offline</span>';
+    const upd=s.update&&s.update.running;
+    const pill=upd?`<span class="pill updp"><i></i>Update <span data-rv="updpct">${Math.round(s.update.percent||0)}</span> %</span>`
+      :!s.installed?'<span class="pill na"><i></i>Nicht installiert</span>':s.running?'<span class="pill ok"><i></i>Online</span>':'<span class="pill off"><i></i>Offline</span>';
     const cpuC=s.cpu<50?"ok":s.cpu<80?"warn":"crit";
-    const bars=s.running?`<div class="bars">
+    const bars=upd?`<div class="bars">
+      <div class="bar"><span class="l">Update</span><span class="track"><i class="ac" data-fill="upd" style="width:${Math.round(s.update.percent||0)}%"></i></span><span class="rv" data-rv="updpct2">${Math.round(s.update.percent||0)}%</span></div>
+      <div class="bar"><span class="l">Status</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv" style="text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">SteamCMD</span></div>
+    </div>`:s.running?`<div class="bars">
       <div class="bar"><span class="l">CPU</span><span class="track"><i class="${cpuC}" data-fill="cpu" data-w="${s.cpu}"></i></span><span class="rv" data-rv="cpu">${s.cpu}%</span></div>
       <div class="bar"><span class="l">RAM</span><span class="track"><i class="ac" data-fill="ram" data-w="${s.ram_percent}"></i></span><span class="rv" data-rv="ram">${s.ram_gb} GB</span></div>
     </div>`:`<div class="bars"><div class="bar"><span class="l">Status</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv">—</span></div><div class="bar"><span class="l">Uptime</span><span class="track"><i class="ac" data-w="0"></i></span><span class="rv" data-rv="uptime">${esc(s.uptime)}</span></div></div>`;
@@ -319,6 +340,13 @@
     set("st-ram",`${state.status.ram}<small>%</small>`);
     state.servers.forEach(s=>{
       const c=document.querySelector(`[data-card="${s.id}"]`);if(!c)return;
+      if(s.update&&s.update.running){
+        const pct=Math.round(s.update.percent||0);
+        const uf=c.querySelector('[data-fill="upd"]');if(uf)uf.style.width=pct+"%";
+        const u1=c.querySelector('[data-rv="updpct"]');if(u1)u1.textContent=pct;
+        const u2=c.querySelector('[data-rv="updpct2"]');if(u2)u2.textContent=pct+"%";
+        return;
+      }
       if(s.running){
         const cf=c.querySelector('[data-fill="cpu"]');if(cf){cf.style.width=s.cpu+"%";cf.className=(s.cpu<50?"ok":s.cpu<80?"warn":"crit");}
         const rf=c.querySelector('[data-fill="ram"]');if(rf)rf.style.width=s.ram_percent+"%";
@@ -330,7 +358,7 @@
     });
   }
   // Signatur der STRUKTUR (nicht der Live-Zahlen): nur bei Änderung komplett neu rendern
-  function structSig(){return state.view+"|"+state.filter+"|"+state.servers.map(s=>s.id+":"+s.name+":"+(s.running?1:0)+":"+(s.installed?1:0)+":"+s.port).join(",");}
+  function structSig(){return state.view+"|"+state.filter+"|"+state.servers.map(s=>s.id+":"+s.name+":"+(s.running?1:0)+":"+(s.installed?1:0)+":"+s.port+":"+((s.update&&s.update.running)?1:0)).join(",");}
   let lastSig="";
 
   function renderServers(){
@@ -488,9 +516,82 @@
       </div>
       <div class="dactions" style="margin-bottom:18px">${actionBtns}
         <button class="btn danger sm" data-a="delete" data-id="${s.id}" style="margin-left:auto">🗑 Entfernen</button></div>
+      <div id="upd-box"></div>
       <div class="tabs">${tabs.map(t=>`<button class="tab${t[0]===state.tab?" active":""}" data-tab="${t[0]}">${t[1]}</button>`).join("")}</div>
       <div id="panel"><div class="loading">Lade…</div></div>
     </div>`;
+    pollUpdate();
+  }
+
+  // ---------- Update-Fortschritt ----------
+  let updTimer=null,updWasRunning=false;
+
+  function fmtTime(iso){
+    if(!iso)return "";
+    const d=new Date(iso);if(isNaN(d.getTime()))return iso;
+    const z=n=>String(n).padStart(2,"0");
+    return `${z(d.getDate())}.${z(d.getMonth()+1)}.${d.getFullYear()}, ${z(d.getHours())}:${z(d.getMinutes())}`;
+  }
+
+  function updBoxHTML(u){
+    if(!u)return "";
+    const last=u.last_update?`<div class="ul">Zuletzt aktualisiert: <b>${esc(fmtTime(u.last_update))}</b></div>`:"";
+    if(u.running){
+      const pct=Math.round(u.percent||0);
+      const lines=(u.lines||[]);
+      return `<div class="upd">
+        <div class="uh"><span class="spin"></span>Update läuft<span class="sp">${pct} %</span></div>
+        <div class="us">${esc(u.status||"…")}</div>
+        <div class="track"><i class="ac" style="width:${pct}%"></i></div>
+        <div class="logbox ulog" id="upd-log">${lines.length?lines.map(esc).join("\n"):"(warte auf SteamCMD…)"}</div>
+        ${last}
+      </div>`;
+    }
+    if(u.success===null||u.success===undefined)return last?`<div class="upd">${last}</div>`:"";
+    const ok=u.success===true;
+    const lines=(u.lines||[]);
+    return `<div class="upd ${ok?"done":"fail"}">
+      <div class="uh">${ok?"✅":"❌"} ${esc(u.message||(ok?"Update abgeschlossen":"Update fehlgeschlagen"))}</div>
+      ${lines.length?`<div class="logbox ulog">${lines.map(esc).join("\n")}</div>`:""}
+      ${last}
+    </div>`;
+  }
+
+  function stopUpdPoll(){if(updTimer){clearInterval(updTimer);updTimer=null;}}
+
+  // In der Listenansicht (ohne Detail) den Karten-Fortschritt schneller nachziehen
+  let cardWatch=null;
+  function startCardWatch(){
+    if(cardWatch)return;
+    cardWatch=setInterval(async()=>{
+      await refresh();
+      const busy=state.servers.some(s=>s.update&&s.update.running);
+      if(state.detail){clearInterval(cardWatch);cardWatch=null;return;}
+      const ns=structSig();
+      if(ns!==lastSig){lastSig=ns;render();}else updateLive();
+      if(!busy){clearInterval(cardWatch);cardWatch=null;}
+    },2000);
+  }
+
+  async function pollUpdate(){
+    const s=server();
+    if(!s){stopUpdPoll();updWasRunning=false;return;}
+    const u=await api(`/api/server/${s.id}/update-status`).catch(()=>null);
+    if(!u)return;
+    const box=$("#upd-box");if(box)box.innerHTML=updBoxHTML(u);
+    const log=$("#upd-log");if(log)log.scrollTop=log.scrollHeight;
+    if(u.running){
+      updWasRunning=true;
+      if(!updTimer)updTimer=setInterval(pollUpdate,1500);
+      return;
+    }
+    stopUpdPoll();
+    if(updWasRunning){
+      updWasRunning=false;
+      toast(s.name,u.message||(u.success?"Update abgeschlossen":"Update fehlgeschlagen"),u.success?"ok":"crit");
+      await refresh();
+      if(state.detail===s.id){renderDetailShell();loadTab();}
+    }
   }
   async function loadTab(){
     const s=server();if(!s)return;const p=$("#panel");if(!p)return;
@@ -499,7 +600,8 @@
       const c=(d&&d.config)||{};
       const rows=[["Spiel",s.game],["Port",s.port],["Query-Port",s.query_port],["Max. Spieler",s.max_players],
         ["Karte",s.map||"—"],["Uptime",s.uptime],["Auto-Neustart",s.auto_restart?"Ja":"Nein"],
-        ["Auto-Backup",s.auto_backup?`alle ${s.backup_interval}h`:"Aus"],["Mods",Array.isArray(s.mods)?s.mods.length:0],["Installiert",s.installed?"Ja":"Nein"]];
+        ["Auto-Backup",s.auto_backup?`alle ${s.backup_interval}h`:"Aus"],["Mods",Array.isArray(s.mods)?s.mods.length:0],["Installiert",s.installed?"Ja":"Nein"],
+        ["Zuletzt aktualisiert",s.last_update?fmtTime(s.last_update):"—"]];
       p.innerHTML=`<div class="panel"><div class="kv">${rows.map(r=>`<div class="kvc"><div class="k">${r[0]}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div></div>`;
     }
     else if(state.tab==="settings"){
@@ -576,9 +678,16 @@
       if(state.detail===id){state.detail=null;setActiveNav("dashboard");}
       await refresh();render();return;
     }
-    if(a==="install"){
-      const r=await api(`/api/server/${id}/update`,{method:"POST"}).catch(()=>null); // update = install/validate über SteamCMD
-      toast(nm,"Installation/Update gestartet — läuft im Hintergrund","info");await refresh();render();return;
+    if(a==="install"||a==="update"){
+      // update = install/validate über SteamCMD (gleicher Endpunkt)
+      const r=await api(`/api/server/${id}/update`,{method:"POST"}).catch(()=>null);
+      if(!r){toast(nm,"Anfrage fehlgeschlagen","crit");return;}
+      if(r.success===false){toast(nm,r.message||"Nicht möglich","crit");return;}
+      if(state.detail===id)updWasRunning=true;   // Abschluss nur hier melden
+      toast(nm,a==="install"?"Installation gestartet — Fortschritt siehe unten":"Update gestartet — Fortschritt siehe unten","info");
+      await refresh();render();
+      if(state.detail!==id)startCardWatch();
+      return;
     }
     const verb={start:"wird gestartet…",stop:"wird gestoppt…",restart:"wird neu gestartet…",backup:"Backup wird erstellt…",update:"Update gestartet…"}[a]||"…";
     const r=await api(`/api/server/${id}/${a}`,{method:"POST"}).catch(()=>null);
@@ -607,7 +716,7 @@
 
   function setActiveNav(v){document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));}
   function go(view,fromPop){state.view=view;state.detail=null;setActiveNav(view);render();if(!fromPop)history.pushState({view},"","");}
-  function backToList(){go("dashboard");}
+  function backToList(){stopUpdPoll();updWasRunning=false;go("dashboard");}
 
   // Zurück-Button (Maus/Browser) navigiert innerhalb der App statt zur Login-Seite
   window.addEventListener("popstate",function(e){
