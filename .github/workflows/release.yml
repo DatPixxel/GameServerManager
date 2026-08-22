@@ -1,0 +1,119 @@
+# Baut die Windows-Version und veroeffentlicht sie als Release.
+#
+# Ausloeser ist ein Versions-Tag (z. B. v3.63). Danach erscheint die neue Version
+# im Programm unter Einstellungen -> Programm-Update von selbst, weil der Updater
+# `releases/latest` abfragt.
+#
+# Bewusst KEINE Build-Artefakte: der Actions-Speicher ist kontoweit auf 0,5 GB
+# begrenzt (siehe github-cleanup.sh am Server). Das ZIP haengt direkt am Release,
+# und Releases zaehlen nicht auf dieses Kontingent.
+
+name: Release bauen
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Vorhandener Tag, der gebaut werden soll (z. B. v3.63)'
+        required: true
+
+jobs:
+  windows-build:
+    name: Windows bauen und veroeffentlichen
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          # 3.13 ist die Fassung, mit der die bisherigen Releases gebaut wurden
+          python-version: '3.13'
+
+      - name: Abhaengigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Version gegen den Tag pruefen
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event.inputs.tag }}') { '${{ github.event.inputs.tag }}' } else { '${{ github.ref_name }}' }
+          $tagVersion = $tag -replace '^v', ''
+          $treffer = Select-String -Path 'gsm/constants.py' -Pattern '^VERSION\s*=\s*"([^"]+)"'
+          $codeVersion = $treffer.Matches[0].Groups[1].Value
+          Write-Host "Tag: $tagVersion   Code: $codeVersion"
+          if ($tagVersion -ne $codeVersion) {
+            # Sonst meldet das installierte Programm nach dem Update weiterhin die
+            # alte Version und bietet dasselbe Update endlos wieder an.
+            Write-Error "VERSION in gsm/constants.py ist '$codeVersion', der Tag lautet '$tagVersion'. Bitte angleichen."
+            exit 1
+          }
+          "version=$codeVersion" >> $env:GITHUB_ENV
+          "tag=$tag" >> $env:GITHUB_ENV
+
+      - name: Ordner-Version bauen
+        run: python -m PyInstaller --noconfirm --clean GameServerManager.spec
+
+      - name: Build pruefen
+        shell: pwsh
+        run: |
+          # Die Ordner-Version ist Pflicht: die frueheren Abstuerze
+          # "python313.dll konnte nicht geladen werden" kamen von der Einzeldatei.
+          if (-not (Test-Path 'dist/GameServerManager/GameServerManager.exe')) {
+            Write-Error 'dist/GameServerManager/GameServerManager.exe fehlt.'
+            exit 1
+          }
+          if (-not (Test-Path 'dist/GameServerManager/_internal')) {
+            Write-Error 'Der Ordner _internal fehlt - das waere ein Einzeldatei-Build.'
+            exit 1
+          }
+
+      - name: ZIP packen
+        shell: pwsh
+        # Der ZIP muss den Ordner GameServerManager\ enthalten, sonst findet der
+        # Updater beim Tausch die falsche Struktur vor.
+        run: Compress-Archive -Path 'dist/GameServerManager' -DestinationPath 'dist/GameServerManager.zip' -Force
+
+      - name: Release veroeffentlichen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notizen = "release-notes/$env:tag.md"
+          if (Test-Path $notizen) {
+            # Beschreibung immer aus einer Datei - Sonderzeichen zerlegen sonst den Aufruf
+            gh release create $env:tag 'dist/GameServerManager.zip' --title "$env:tag" --notes-file $notizen
+          } else {
+            gh release create $env:tag 'dist/GameServerManager.zip' --title "$env:tag" --generate-notes
+          }
+
+  tests:
+    name: Tests (blockiert den Release nicht)
+    runs-on: windows-latest
+    # Bewusst getrennt und ohne Abhaengigkeit: die Testlaeufe sind auf einem
+    # Runner noch nicht erprobt, und ein Fehlschlag soll den Release nicht
+    # verhindern. Sobald sie sich bewaehrt haben, kann `needs: tests` in den
+    # Build-Job wandern.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - run: python -m pytest -q
