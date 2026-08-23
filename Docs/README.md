@@ -19,7 +19,8 @@ run.py                      # Entry-Point (startet GameServerManagerApp)
 selftest.py                 # Schnelltest der laufenden App
 templates/                  # Web-Dashboard- und Chat-HTML
 static/                     # Web-Dashboard- und Chat-JavaScript
-build.bat / GameServerManager.spec / installer.iss   # Build & Installer
+GameServerManager.spec / installer.iss   # Build (Ordner-Version) & Installer
+.github/workflows/release.yml                # Windows-Build + Release ueber GitHub Actions
 Docs/                       # Dokumentation (teils historisch – siehe unten)
 ```
 
