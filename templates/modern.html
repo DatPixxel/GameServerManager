@@ -161,6 +161,15 @@
   .tab:hover{color:var(--text)}
   .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
   .panel{animation:fade .2s}
+  /* Verbinden-Block in der Serveransicht */
+  .verb{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:14px 16px;margin-bottom:16px}
+  .verb h3{font-size:12px;margin:0 0 10px;color:var(--gedaempft, var(--muted));text-transform:uppercase;letter-spacing:.02em}
+  .vz{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--border-soft);flex-wrap:wrap}
+  .vz:first-of-type{border-top:0}
+  .vz .art{font-size:11.5px;color:var(--muted);flex:0 0 auto;min-width:132px}
+  .vz .adr{font-family:var(--mono);font-size:14px;color:var(--text);flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+  .vz .btn{flex:0 0 auto}
+  .verb .leerhinweis{font-size:12.5px;color:var(--faint)}
   .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
   .kvc{background:var(--surface-2);border:1px solid var(--border-soft);border-radius:var(--r-s);padding:14px 16px}
   .kvc .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:650}
@@ -602,7 +611,11 @@
         ["Karte",s.map||"—"],["Uptime",s.uptime],["Auto-Neustart",s.auto_restart?"Ja":"Nein"],
         ["Auto-Backup",s.auto_backup?`alle ${s.backup_interval}h`:"Aus"],["Mods",Array.isArray(s.mods)?s.mods.length:0],["Installiert",s.installed?"Ja":"Nein"],
         ["Zuletzt aktualisiert",s.last_update?fmtTime(s.last_update):"—"]];
-      p.innerHTML=`<div class="panel"><div class="kv">${rows.map(r=>`<div class="kvc"><div class="k">${r[0]}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div></div>`;
+      p.innerHTML=`<div class="panel">
+        <div class="verb" id="verb"><h3>Verbinden</h3><div class="leerhinweis">Adressen werden ermittelt…</div></div>
+        <div class="kv">${rows.map(r=>`<div class="kvc"><div class="k">${r[0]}</div><div class="v">${esc(r[1])}</div></div>`).join("")}</div>
+      </div>`;
+      ladeVerbindung(s);
     }
     else if(state.tab==="settings"){
       p.innerHTML=`<div class="panel" style="max-width:640px"><div class="kvc" style="display:flex;flex-direction:column;gap:14px">
@@ -651,6 +664,28 @@
       p.innerHTML=`<div class="panel"><div class="editrow"><input class="modin" id="modid" placeholder="Workshop-Mod-ID…"><button class="btn primary sm" id="addmod">＋ Hinzufügen</button></div>
         <div class="list">${mods.length?mods.map(m=>`<div class="modtag">${esc(names[m]||m)} <span style="color:var(--faint)">(${esc(m)})</span><button data-delmod="${esc(m)}">✕</button></div>`).join(""):'<span style="color:var(--faint);font-size:13px">Noch keine Mods.</span>'}</div></div>`;
     }
+  }
+
+  // Adressen dieses Rechners - einmal geholt und gemerkt, sie aendern sich nicht
+  let adressen=null;
+  async function ladeVerbindung(s){
+    const kasten=$("#verb");if(!kasten)return;
+    if(!adressen){
+      const d=await api("/api/netzwerk/adressen").catch(()=>null);
+      adressen=(d&&d.adressen)||[];
+    }
+    if(!adressen.length){
+      kasten.innerHTML=`<h3>Verbinden</h3><div class="leerhinweis">Keine Netzwerkadresse gefunden. Ersatzweise die Adresse dieser Seite: <span class="mono">${esc(location.hostname)}</span>:${esc(s.port)}</div>`;
+      return;
+    }
+    const zeilen=adressen.map(a=>{
+      const ziel=`${a.adresse}:${s.port}`;
+      return `<div class="vz"><span class="art">${esc(a.bezeichnung)}</span><span class="adr">${esc(ziel)}</span>
+        <button class="btn ghost sm" data-verb="${esc(ziel)}">Kopieren</button></div>`;
+    }).join("");
+    const query=(s.query_port&&s.query_port!==s.port)
+      ? `<div class="leerhinweis" style="margin-top:9px">Query-Port ${esc(s.query_port)} — brauchen manche Serverlisten zusätzlich.</div>` : "";
+    kasten.innerHTML=`<h3>Verbinden</h3>${zeilen}${query}`;
   }
 
   async function openConfig(path){
@@ -749,6 +784,21 @@
     if(svc){const path=svc.getAttribute("data-svc");api(`/api/services/${path}`,{method:"POST"}).then(r=>{toast("Dienst",r&&r.message||"aktualisiert",r&&r.success!==false?"ok":"crit");renderTools();});return;}
     const goto=e.target.closest("[data-goto]");
     if(goto){go(goto.getAttribute("data-goto"));return;}
+    const vb=e.target.closest("[data-verb]");
+    if(vb){
+      const ziel=vb.getAttribute("data-verb");
+      // Ueber einfaches http ist die Zwischenablage gesperrt - dann Ersatzweg
+      const fertig=()=>toast("Kopiert",ziel,"ok");
+      if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(ziel).then(fertig).catch(()=>toast("Adresse",ziel,"info"));}
+      else{
+        const f=document.createElement("textarea");f.value=ziel;f.style.position="fixed";f.style.top="-1000px";
+        document.body.appendChild(f);f.select();
+        let ok=false;try{ok=document.execCommand("copy");}catch(err){ok=false;}
+        document.body.removeChild(f);
+        ok?fertig():toast("Adresse",ziel,"info");
+      }
+      return;
+    }
     if(e.target.closest("#copyurl")){navigator.clipboard&&navigator.clipboard.writeText(location.origin);toast("Kopiert",location.origin,"ok");return;}
     // App-Einstellungen speichern
     if(e.target.closest("#save-general")){saveGeneral();return;}

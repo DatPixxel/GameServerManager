@@ -20,6 +20,7 @@ from flask import Flask, render_template_string, jsonify, request, session, redi
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from gsm.constants import CONAN_UPLOAD_MAX_BYTES, SENSITIVE_SERVER_KEYS
+from gsm.netzwerk import eigene_adressen
 from gsm.paths import PATHS
 from gsm.games import SUPPORTED_GAMES
 from gsm.security import generate_session_token, validate_config_path
@@ -401,6 +402,19 @@ def create_web_app(app_instance, config_manager):
                 'update': _update_summary(instance)
             })
         return jsonify({'servers': servers})
+
+    @flask_app.route('/api/netzwerk/adressen')
+    def api_netzwerk_adressen():
+        """Adressen, unter denen dieser Rechner erreichbar ist.
+
+        Fuer die Verbindungsanzeige in der Serveransicht. Die Weboberflaeche
+        kennt nur die Adresse, ueber die sie selbst aufgerufen wurde - das ist
+        nicht zwingend die, die Mitspieler brauchen.
+        """
+        if 'token' not in session or session['token'] not in valid_sessions:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        return jsonify({'adressen': eigene_adressen()})
 
     @flask_app.route('/api/games')
     def api_games():
