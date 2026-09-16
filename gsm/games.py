@@ -260,8 +260,13 @@ SUPPORTED_GAMES = {
         "default_params": "-Log -UserDir=\"IcarusServer\"",
         "default_ports": {"game": 17777, "query": 27015},
         "icon": "🪐",
-        "config_path": "IcarusServer/Saved/Config/WindowsServer",
-        "save_path": "IcarusServer/Saved/PlayerData"
+        # Der Benutzerordner liegt im Spielordner, nicht im Serververzeichnis:
+        # <server>/Icarus/IcarusServer/Saved/... - am 08.09.2026 auf dem echten
+        # Server nachgemessen. Ohne das "Icarus/" davor sucht der Manager ins
+        # Leere: Backups blieben still leer und der Konfigurations-Tab zeigte
+        # keine Dateien an.
+        "config_path": "Icarus/IcarusServer/Saved/Config/WindowsServer",
+        "save_path": "Icarus/IcarusServer/Saved/PlayerData"
         # Kein requires_login! Icarus kann mit "login anonymous" heruntergeladen werden
     },
     "StarRupture": {
